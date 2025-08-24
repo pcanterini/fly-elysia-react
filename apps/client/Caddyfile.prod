@@ -1,0 +1,13 @@
+:80 {
+    root * /usr/share/caddy
+
+    # API proxy to production server
+    handle /api/* {
+        reverse_proxy https://bun-app-server.fly.dev
+    }
+
+    # SPA fallback
+    try_files {path} /index.html
+
+    file_server
+}

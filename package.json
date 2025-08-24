@@ -14,7 +14,10 @@
     "build:client": "cd apps/client && bun run build",
     "build:server": "cd apps/server && bun run build",
     "docker:up": "docker-compose up --build",
-    "docker:down": "docker-compose down"
+    "docker:down": "docker-compose down",
+    "deploy": "./deploy.sh",
+    "deploy:server": "./deploy-server.sh",
+    "deploy:client": "./deploy-client.sh"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
