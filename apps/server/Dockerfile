@@ -2,18 +2,18 @@ FROM oven/bun:1
 
 WORKDIR /app
 
-# Copy root package.json and lockfile
+# Copy package files for dependency installation
 COPY package.json bun.lock ./
 COPY apps/server/package.json ./apps/server/
 
 # Install dependencies
 RUN bun install
 
-# Copy server source
+# Copy server source code
 COPY apps/server ./apps/server
 
 # Build the server
-RUN bun --cwd apps/server run build
+RUN cd apps/server && bun run build
 
 WORKDIR /app/apps/server
 
