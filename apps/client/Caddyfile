@@ -1,0 +1,13 @@
+:80 {
+    root * /usr/share/caddy
+
+    # API proxy
+    handle /api/* {
+        reverse_proxy server:3001
+    }
+
+    # SPA fallback
+    try_files {path} /index.html
+
+    file_server
+}
