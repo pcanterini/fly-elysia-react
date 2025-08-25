@@ -1,7 +1,12 @@
 import { useState, useEffect } from "react";
-import reactLogo from "./assets/react.svg";
-import viteLogo from "/vite.svg";
-import "./App.css";
+import {
+  FiSun,
+  FiMoon,
+  FiCheck,
+  FiX,
+  FiRefreshCw,
+  FiPlus,
+} from "react-icons/fi";
 
 interface HealthStatus {
   status: string;
@@ -13,12 +18,23 @@ function App() {
   const [healthStatus, setHealthStatus] = useState<HealthStatus | null>(null);
   const [healthError, setHealthError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isDarkTheme, setIsDarkTheme] = useState(() => {
+    return (
+      localStorage.getItem("theme") === "dark" ||
+      (!localStorage.getItem("theme") &&
+        window.matchMedia("(prefers-color-scheme: dark)").matches)
+    );
+  });
+
+  const API_URL = import.meta.env.DEV
+    ? "http://localhost:3001"
+    : "https://bun-app-server.fly.dev";
 
   const checkHealth = async () => {
     setIsLoading(true);
     setHealthError(null);
     try {
-      const response = await fetch("https://bun-app-server.fly.dev/api/health");
+      const response = await fetch(`${API_URL}/api/health`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -34,52 +50,86 @@ function App() {
     }
   };
 
+  const toggleTheme = () => {
+    setIsDarkTheme(!isDarkTheme);
+  };
+
+  useEffect(() => {
+    if (isDarkTheme) {
+      document.documentElement.classList.add("dark");
+      localStorage.setItem("theme", "dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+      localStorage.setItem("theme", "light");
+    }
+  }, [isDarkTheme]);
+
   useEffect(() => {
     checkHealth();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
+    <div className="app">
+      <button
+        className="btn btn-ghost theme-toggle"
+        onClick={toggleTheme}
+        aria-label="Toggle theme"
+      >
+        {isDarkTheme ? <FiSun size={20} /> : <FiMoon size={20} />}
+      </button>
 
-      <div className="card">
-        <h2>API Health Check</h2>
-        <div style={{ marginBottom: "1rem" }}>
-          {isLoading && <p>🔄 Checking API health...</p>}
-          {healthStatus && !isLoading && (
-            <p style={{ color: "green" }}>
-              ✅ API Status: {healthStatus.status} - {healthStatus.message}
-            </p>
-          )}
-          {healthError && !isLoading && (
-            <p style={{ color: "red" }}>❌ API Error: {healthError}</p>
-          )}
+      <main>
+        <h1>React + Vite + Elysia</h1>
+        <p className="subtitle">Running on Fly.io</p>
+
+        <div className="status-section">
+          <div className="status-indicator">
+            {isLoading && (
+              <span className="loading">
+                <FiRefreshCw className="spin" size={16} /> Checking API...
+              </span>
+            )}
+            {healthStatus && !isLoading && (
+              <span className="status-ok">
+                <FiCheck size={16} /> API Connected
+              </span>
+            )}
+            {healthError && !isLoading && (
+              <span className="status-error">
+                <FiX size={16} /> API Disconnected
+              </span>
+            )}
+          </div>
+          <button 
+            className="btn btn-primary" 
+            onClick={(e) => {
+              checkHealth();
+              e.currentTarget.blur();
+            }}
+            disabled={isLoading}
+          >
+            <FiRefreshCw size={14} className={isLoading ? "spin" : ""} />
+            {isLoading ? " Checking..." : " Check API"}
+          </button>
         </div>
-        <button onClick={checkHealth} disabled={isLoading}>
-          {isLoading ? "Checking..." : "Check API Health"}
-        </button>
-      </div>
 
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
+        <div className="counter-section">
+          <p>
+            Count: <strong>{count}</strong>
+          </p>
+          <button 
+            className="btn btn-default" 
+            onClick={(e) => {
+              setCount((count) => count + 1);
+              e.currentTarget.blur();
+            }}
+          >
+            <FiPlus size={14} /> Increment
+          </button>
+        </div>
+      </main>
+    </div>
   );
 }
 

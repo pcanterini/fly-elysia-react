@@ -1,10 +1,22 @@
 import { Elysia } from 'elysia'
 import { cors } from '@elysiajs/cors'
 
+const allowedOrigins = [
+  'https://bun-app-client.fly.dev',
+  'http://localhost:3000',
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://localhost:4173',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:5174',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:4173'
+]
+
 const app = new Elysia()
   .use(
     cors({
-      origin: 'https://bun-app-client.fly.dev',
+      origin: allowedOrigins,
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
       allowedHeaders: ['Content-Type', 'Authorization'],
       credentials: true,

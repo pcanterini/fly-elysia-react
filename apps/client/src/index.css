@@ -1,68 +1,176 @@
+/* Terminal CSS overrides for cleaner, simpler UI */
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
+  /* Adjust Terminal CSS font sizes */
+  --global-font-size: 14px;
+  --global-line-height: 1.6;
 }
 
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
+  padding: 40px 20px;
+}
+
+.app {
+  max-width: 600px;
+  margin: 0 auto;
+  position: relative;
+}
+
+main {
+  text-align: center;
 }
 
 h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
+  font-size: 1.8rem;
+  margin-bottom: 0.25rem;
+  color: var(--primary-color);
 }
 
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+.subtitle {
+  color: var(--secondary-color);
+  margin-bottom: 2rem;
+  font-size: 0.9rem;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
+.status-section,
+.counter-section {
+  margin-bottom: 2rem;
+}
+
+.status-indicator {
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+
+.status-ok {
+  color: var(--success-color);
+}
+
+.status-error {
+  color: var(--error-color);
+}
+
+.loading {
+  color: var(--secondary-color);
+}
+
+.counter-section p {
+  font-size: 1rem;
+  margin-bottom: 1rem;
+}
+
+.counter-section strong {
+  color: var(--primary-color);
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+.hint {
+  margin-top: 3rem;
+  font-size: 0.85rem;
+  color: var(--secondary-color);
+}
+
+/* Remove excessive borders and boxes */
+.terminal-card {
+  border: none;
+  box-shadow: none;
+  padding: 0;
+}
+
+/* Theme toggle button positioning */
+.theme-toggle {
+  position: absolute;
+  top: -30px;
+  right: 0;
+  padding: 0.5rem;
+  min-width: auto;
+}
+
+/* Icon styles */
+.status-indicator span {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+/* Make Terminal CSS buttons work with flex icons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  justify-content: center;
+}
+
+/* Prevent buttons from staying in active/focus state */
+.btn:focus {
+  outline: none;
+}
+
+.btn:active {
+  transform: translateY(1px);
+}
+
+/* Spinning animation for loading */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
   }
-  a:hover {
-    color: #747bff;
+  to {
+    transform: rotate(360deg);
   }
-  button {
-    background-color: #f9f9f9;
-  }
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+  display: inline-block;
+}
+
+/* Dark theme - Override Terminal CSS variables */
+.dark {
+  --background-color: #222225;
+  --font-color: #e8e9ed;
+  --invert-font-color: #222225;
+  --secondary-color: #a3abba;
+  --tertiary-color: #a3abba;
+  --primary-color: #62c4ff;
+  --error-color: #ff3c74;
+  --success-color: #47d094;
+  --warning-color: #ffdd57;
+  --input-background: #3f3f44;
+  --input-border: #3f3f44;
+  --input-color: #e8e9ed;
+  --input-placeholder: #a3abba;
+  --link-color: #62c4ff;
+  --code-bg-color: #3f3f44;
+  --code-color: #62c4ff;
+  --highlight-color: #62c4ff;
+  --border-color: #3f3f44;
+  --card-background: #2a2a2d;
+  --card-border: #3f3f44;
+  --button-color: #62c4ff;
+  --button-border: #62c4ff;
+  --button-background: transparent;
+  --button-hover-background: #62c4ff;
+  --button-hover-border: #62c4ff;
+  --button-hover-color: #222225;
+  --form-border: #3f3f44;
+  --form-background: #3f3f44;
+  --form-color: #e8e9ed;
+  --progress-bar-background: #3f3f44;
+  --progress-bar-fill: #62c4ff;
+  --table-border: #3f3f44;
+  --table-background: #2a2a2d;
+  --table-hover-background: #3f3f44;
+  --header-background: #2a2a2d;
+  --header-border: #3f3f44;
+  --modal-overlay: rgba(0, 0, 0, 0.8);
+  --modal-background: #2a2a2d;
+}
+
+/* Apply dark background to body when dark mode is active */
+.dark body {
+  background-color: var(--background-color);
+  color: var(--font-color);
 }
