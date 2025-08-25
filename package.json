@@ -28,6 +28,8 @@
     "concurrently": "^8.2.2"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.85.5",
+    "nuqs": "^2.5.1",
     "terminal.css": "^0.7.5"
   }
 }

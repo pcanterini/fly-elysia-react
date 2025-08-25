@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   FiSun,
   FiMoon,
@@ -15,9 +16,6 @@ interface HealthStatus {
 
 function App() {
   const [count, setCount] = useState(0);
-  const [healthStatus, setHealthStatus] = useState<HealthStatus | null>(null);
-  const [healthError, setHealthError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
   const [isDarkTheme, setIsDarkTheme] = useState(() => {
     return (
       localStorage.getItem("theme") === "dark" ||
@@ -30,25 +28,23 @@ function App() {
     ? "http://localhost:3001"
     : "https://bun-app-server.fly.dev";
 
-  const checkHealth = async () => {
-    setIsLoading(true);
-    setHealthError(null);
-    try {
+  const {
+    data: healthStatus,
+    error: healthError,
+    isLoading,
+    refetch,
+  } = useQuery<HealthStatus>({
+    queryKey: ["health"],
+    queryFn: async () => {
       const response = await fetch(`${API_URL}/api/health`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      const data: HealthStatus = await response.json();
-      setHealthStatus(data);
-    } catch (error) {
-      setHealthError(
-        error instanceof Error ? error.message : "Unknown error occurred"
-      );
-      setHealthStatus(null);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      return response.json();
+    },
+    retry: 1,
+    refetchOnWindowFocus: false,
+  });
 
   const toggleTheme = () => {
     setIsDarkTheme(!isDarkTheme);
@@ -63,11 +59,6 @@ function App() {
       localStorage.setItem("theme", "light");
     }
   }, [isDarkTheme]);
-
-  useEffect(() => {
-    checkHealth();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   return (
     <div className="app">
@@ -101,10 +92,10 @@ function App() {
               </span>
             )}
           </div>
-          <button 
-            className="btn btn-primary" 
+          <button
+            className="btn btn-primary"
             onClick={(e) => {
-              checkHealth();
+              refetch();
               e.currentTarget.blur();
             }}
             disabled={isLoading}
@@ -118,8 +109,8 @@ function App() {
           <p>
             Count: <strong>{count}</strong>
           </p>
-          <button 
-            className="btn btn-default" 
+          <button
+            className="btn btn-default"
             onClick={(e) => {
               setCount((count) => count + 1);
               e.currentTarget.blur();
