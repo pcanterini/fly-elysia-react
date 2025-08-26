@@ -12,10 +12,16 @@ if (!process.env.REDIS_URL) {
 // Start the worker
 const worker = startExampleWorker();
 
+// If worker failed to start, exit
+if (!worker) {
+  console.error('❌ Worker failed to start, exiting...');
+  process.exit(1);
+}
+
 // Handle graceful shutdown
 const shutdown = async () => {
   console.log('Worker shutting down gracefully...');
-  await worker?.close();
+  await worker.close();
   process.exit(0);
 };
 
