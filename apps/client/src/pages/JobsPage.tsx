@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../lib/api';
-import { FiRefreshCw, FiTrash2, FiPlay, FiClock, FiCheckCircle, FiXCircle, FiPauseCircle, FiArrowLeft } from 'react-icons/fi';
 import type { Job, JobStatus } from '@my-app/shared';
 
 export function JobsPage() {
@@ -59,43 +58,20 @@ export function JobsPage() {
   const getStatusIcon = (status: JobStatus) => {
     switch (status) {
       case 'completed':
-        return <FiCheckCircle className="text-green-500" />;
+        return <span style={{ color: 'var(--success)' }}>✓</span>;
       case 'failed':
-        return <FiXCircle className="text-red-500" />;
+        return <span style={{ color: 'var(--error)' }}>✗</span>;
       case 'active':
-        return <FiPlay className="text-blue-500" />;
+        return <span style={{ color: 'var(--primary)' }}>▶</span>;
       case 'delayed':
-        return <FiClock className="text-yellow-500" />;
+        return <span style={{ color: 'var(--warning)' }}>⏰</span>;
       case 'paused':
-        return <FiPauseCircle className="text-gray-500" />;
+        return <span style={{ color: 'var(--muted)' }}>⏸</span>;
       default:
-        return <FiClock className="text-gray-400" />;
+        return <span style={{ color: 'var(--muted)' }}>⏰</span>;
     }
   };
 
-  const getStatusColor = (status: JobStatus) => {
-    switch (status) {
-      case 'completed': return 'text-green-500 bg-green-500/10';
-      case 'failed': return 'text-red-500 bg-red-500/10';
-      case 'active': return 'text-blue-500 bg-blue-500/10';
-      case 'delayed': return 'text-yellow-500 bg-yellow-500/10';
-      case 'paused': return 'text-gray-500 bg-gray-500/10';
-      default: return 'text-gray-400 bg-gray-400/10';
-    }
-  };
-
-  const getProgressBar = (progress: number, status: JobStatus) => {
-    if (status !== 'active') return null;
-    return (
-      <div className="w-full bg-gray-700 rounded-full h-2 mt-2">
-        <div 
-          className="bg-blue-600 h-2 rounded-full transition-all duration-300 ease-out" 
-          style={{ width: `${progress}%` }}
-        />
-        <p className="text-xs text-gray-400 mt-1">{progress}% complete</p>
-      </div>
-    );
-  };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString();
@@ -108,49 +84,49 @@ export function JobsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white p-8">
-      <div className="max-w-7xl mx-auto">
-        <header className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <h1 className="text-3xl font-bold">Job Queue Management</h1>
+    <div className="terminal" style={{ minHeight: '100vh', padding: '2rem' }}>
+      <div className="container">
+        <header className="terminal-header" style={{ marginBottom: '2rem' }}>
+          <div className="terminal-nav" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h1>Job Queue Management</h1>
             <Link 
               to="/dashboard" 
-              className="flex items-center gap-2 px-4 py-2 bg-gray-800 text-gray-300 rounded hover:bg-gray-700 transition-colors"
+              className="btn btn-default btn-ghost"
             >
-              <FiArrowLeft /> Back to Dashboard
+              ← Back to Dashboard
             </Link>
           </div>
-          <p className="text-gray-400">Monitor and manage background jobs</p>
+          <p className="terminal-prompt">Monitor and manage background jobs</p>
         </header>
 
         {/* Action Bar */}
-        <div className="mb-6 flex items-center justify-between">
+        <div className="terminal-menu" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2rem' }}>
           <button
             onClick={() => createJobMutation.mutate()}
             disabled={createJobMutation.isPending}
-            className="px-6 py-3 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            className="btn btn-primary"
           >
-            {createJobMutation.isPending ? 'Creating...' : 'Create Test Job (5s delay)'}
+            {createJobMutation.isPending ? 'Creating...' : '+ Create Test Job'}
           </button>
 
           {/* Tab Switcher */}
-          <div className="flex space-x-2">
+          <div className="terminal-tabs">
             <button
               onClick={() => setSelectedTab('jobs')}
-              className={`px-4 py-2 rounded ${
+              className={`btn ${
                 selectedTab === 'jobs' 
-                  ? 'bg-white text-black' 
-                  : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                  ? 'btn-primary' 
+                  : 'btn-default btn-ghost'
               }`}
             >
               Jobs
             </button>
             <button
               onClick={() => setSelectedTab('stats')}
-              className={`px-4 py-2 rounded ${
+              className={`btn ${
                 selectedTab === 'stats' 
-                  ? 'bg-white text-black' 
-                  : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                  ? 'btn-primary' 
+                  : 'btn-default btn-ghost'
               }`}
             >
               Statistics
@@ -160,124 +136,139 @@ export function JobsPage() {
 
         {/* Content Area */}
         {selectedTab === 'jobs' ? (
-          <div className="bg-gray-900 rounded-lg p-6 border border-gray-800">
-            <h2 className="text-xl font-semibold mb-4">Jobs History</h2>
-            
+          <div>
+            <h2 style={{ marginBottom: '1.5rem' }}>Jobs History</h2>
             {jobsLoading ? (
-              <p className="text-gray-400">Loading jobs...</p>
+              <div className="terminal-alert">Loading jobs...</div>
             ) : (
-              <div className="space-y-4">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                 {jobsData?.jobs?.map((job) => (
-                  <div key={job.id} className="bg-black border border-gray-800 p-4 rounded-lg">
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
+                  <div key={job.id} className="terminal-card">
+                      <header style={{ padding: '0.5rem 1rem', borderBottom: '1px solid var(--secondary)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                           {getStatusIcon(job.status)}
-                          <p className="text-white font-medium">Job #{job.id}</p>
-                          <span className={`px-2 py-1 rounded text-xs font-semibold ${getStatusColor(job.status)}`}>
+                          <strong>Job #{job.id}</strong>
+                          <span className={`terminal-badge ${job.status === 'completed' ? 'terminal-badge-success' : job.status === 'failed' ? 'terminal-badge-error' : job.status === 'active' ? 'terminal-badge-info' : ''}`}>
                             {job.status.toUpperCase()}
                           </span>
                         </div>
+                      </header>
+                      <div style={{ padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <div style={{ flex: 1 }}>
                         
-                        <div className="text-sm text-gray-400 space-y-1">
-                          <p>Name: {job.name}</p>
-                          <p>Created: {formatDate(job.createdAt)}</p>
-                          {job.processedOn && <p>Started: {formatDate(job.processedOn)}</p>}
+                        <div className="terminal-comment">
+                          <div>Name: {job.name}</div>
+                          <div>Created: {formatDate(job.createdAt)}</div>
+                          {job.processedOn && <div>Started: {formatDate(job.processedOn)}</div>}
                           {job.finishedOn && (
-                            <p>
+                            <div>
                               Finished: {formatDate(job.finishedOn)}
                               {calculateDuration(job) && ` (Duration: ${calculateDuration(job)})`}
-                            </p>
+                            </div>
                           )}
                           {job.attempts > 0 && (
-                            <p>Attempts: {job.attempts}/{job.maxAttempts}</p>
+                            <div>Attempts: {job.attempts}/{job.maxAttempts}</div>
                           )}
                         </div>
                         
-                        {getProgressBar(job.progress, job.status)}
+                        {job.status === 'active' && (
+                          <div style={{ marginTop: '0.5rem' }}>
+                            <div className="progress-bar" style={{ marginBottom: '0.25rem' }}>
+                              <div className="progress-bar-filled" style={{ width: `${job.progress}%` }}></div>
+                            </div>
+                            <div className="terminal-comment" style={{ fontSize: '0.85rem' }}>{job.progress}% complete</div>
+                          </div>
+                        )}
                         
                         {job.data && Object.keys(job.data).length > 0 && (
-                          <details className="mt-2">
-                            <summary className="cursor-pointer text-sm text-gray-400 hover:text-gray-300">
+                          <details style={{ marginTop: '0.5rem' }}>
+                            <summary style={{ cursor: 'pointer' }}>
                               Job Data
                             </summary>
-                            <pre className="mt-2 text-xs text-gray-500 bg-gray-900 p-2 rounded overflow-x-auto">
-                              {JSON.stringify(job.data, null, 2)}
+                            <pre style={{ marginTop: '0.5rem', fontSize: '0.875rem' }}>
+                              <code>{JSON.stringify(job.data, null, 2)}</code>
                             </pre>
                           </details>
                         )}
                         
                         {job.result && (
-                          <div className="mt-2">
-                            <p className="text-sm text-green-400">Result:</p>
-                            <pre className="text-xs text-green-400 bg-gray-900 p-2 rounded mt-1 overflow-x-auto">
-                              {JSON.stringify(job.result, null, 2)}
+                          <details style={{ marginTop: '0.5rem' }}>
+                            <summary style={{ cursor: 'pointer', color: 'var(--success)' }}>
+                              <strong>Result</strong>
+                            </summary>
+                            <pre style={{ marginTop: '0.5rem', fontSize: '0.875rem' }}>
+                              <code>{JSON.stringify(job.result, null, 2)}</code>
                             </pre>
-                          </div>
+                          </details>
                         )}
                         
                         {job.error && (
-                          <div className="mt-2">
-                            <p className="text-sm text-red-400">Error:</p>
-                            <p className="text-xs text-red-400 bg-red-900/20 p-2 rounded mt-1">
+                          <details style={{ marginTop: '0.5rem' }} open>
+                            <summary style={{ cursor: 'pointer', color: 'var(--error)' }}>
+                              <strong>Error</strong>
+                            </summary>
+                            <div style={{ marginTop: '0.5rem', color: 'var(--error)', fontSize: '0.875rem' }}>
                               {job.error}
-                            </p>
-                          </div>
+                            </div>
+                          </details>
                         )}
-                      </div>
-                      
-                      {/* Job Actions */}
-                      <div className="flex gap-2 ml-4">
-                        {job.status === 'failed' && (
+                        </div>
+                        
+                        {/* Job Actions */}
+                        <div style={{ display: 'flex', gap: '0.5rem', marginLeft: '1rem' }}>
+                          {job.status === 'failed' && (
+                            <button
+                              onClick={() => retryJobMutation.mutate(job.id)}
+                              disabled={retryJobMutation.isPending}
+                              className="btn btn-default btn-small"
+                              title="Retry Job"
+                            >
+                              ↻ Retry
+                            </button>
+                          )}
                           <button
-                            onClick={() => retryJobMutation.mutate(job.id)}
-                            disabled={retryJobMutation.isPending}
-                            className="p-2 text-yellow-500 hover:bg-gray-800 rounded transition-colors"
-                            title="Retry Job"
+                            onClick={() => removeJobMutation.mutate(job.id)}
+                            disabled={removeJobMutation.isPending}
+                            className="btn btn-error btn-ghost btn-small"
+                            title="Remove Job"
                           >
-                            <FiRefreshCw />
+                            × Remove
                           </button>
-                        )}
-                        <button
-                          onClick={() => removeJobMutation.mutate(job.id)}
-                          disabled={removeJobMutation.isPending}
-                          className="p-2 text-red-500 hover:bg-gray-800 rounded transition-colors"
-                          title="Remove Job"
-                        >
-                          <FiTrash2 />
-                        </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
                 ))}
                 
                 {jobsData?.jobs?.length === 0 && (
-                  <p className="text-gray-400 text-center py-8">
+                  <div className="terminal-alert terminal-alert-primary" style={{ textAlign: 'center' }}>
                     No jobs yet. Create one to get started!
-                  </p>
+                  </div>
                 )}
               </div>
             )}
           </div>
         ) : (
-          <div className="bg-gray-900 rounded-lg p-6 border border-gray-800">
-            <h2 className="text-xl font-semibold mb-4">Queue Statistics</h2>
-            
+          <div className="terminal-card">
+            <header>
+              <h2>Queue Statistics</h2>
+            </header>
+            <div style={{ padding: '1rem' }}>
             {statsLoading ? (
-              <p className="text-gray-400">Loading statistics...</p>
+              <div className="terminal-alert">Loading statistics...</div>
             ) : statsData ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                <StatCard title="Waiting" value={statsData.waiting} color="text-gray-400" />
-                <StatCard title="Active" value={statsData.active} color="text-blue-500" />
-                <StatCard title="Completed" value={statsData.completed} color="text-green-500" />
-                <StatCard title="Failed" value={statsData.failed} color="text-red-500" />
-                <StatCard title="Delayed" value={statsData.delayed} color="text-yellow-500" />
-                <StatCard title="Paused" value={statsData.paused} color="text-gray-500" />
-                <StatCard title="Total" value={statsData.total} color="text-white" />
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem' }}>
+                <StatCard title="Waiting" value={statsData.waiting} type="default" />
+                <StatCard title="Active" value={statsData.active} type="info" />
+                <StatCard title="Completed" value={statsData.completed} type="success" />
+                <StatCard title="Failed" value={statsData.failed} type="error" />
+                <StatCard title="Delayed" value={statsData.delayed} type="warning" />
+                <StatCard title="Paused" value={statsData.paused} type="default" />
+                <StatCard title="Total" value={statsData.total} type="primary" />
               </div>
             ) : (
-              <p className="text-gray-400">Failed to load statistics</p>
+              <div className="terminal-alert terminal-alert-error">Failed to load statistics</div>
             )}
+            </div>
           </div>
         )}
       </div>
@@ -286,11 +277,12 @@ export function JobsPage() {
 }
 
 // Statistics Card Component
-function StatCard({ title, value, color }: { title: string; value: number; color: string }) {
+function StatCard({ title, value, type = 'default' }: { title: string; value: number; type?: 'default' | 'primary' | 'success' | 'error' | 'warning' | 'info' }) {
+  const badgeClass = type === 'default' ? '' : `terminal-alert-${type}`;
   return (
-    <div className="bg-black border border-gray-800 p-4 rounded-lg">
-      <p className="text-gray-400 text-sm mb-2">{title}</p>
-      <p className={`text-2xl font-bold ${color}`}>{value}</p>
+    <div className={`terminal-alert ${badgeClass}`} style={{ textAlign: 'center' }}>
+      <div className="terminal-comment" style={{ marginBottom: '0.5rem' }}>{title}</div>
+      <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{value}</div>
     </div>
   );
 }
