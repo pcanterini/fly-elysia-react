@@ -2,7 +2,7 @@
 
 ## Architecture Overview
 
-```
+```text
 ┌─────────────────────────────────────────────────────────┐
 │                     USER TRAFFIC                         │
 └──────────┬────────────────────────┬─────────────────────┘
@@ -22,6 +22,7 @@
 ```
 
 **Tech Stack:**
+
 - **Frontend**: React 19 SPA + Vite + Caddy
 - **Backend**: Bun runtime + Elysia framework (3-4x faster than Node.js)
 - **Database**: Neon Serverless PostgreSQL (prod) / Local Postgres (dev)
@@ -34,12 +35,14 @@
 ### 🚀 Stage 1: Startup (10-100 Daily Active Users)
 
 **Traffic Expectations:**
+
 - Daily Active Users: 10-100
 - Concurrent Users: 5-20
 - Requests/second: 1-5
 - Database Size: < 1GB
 
 **Infrastructure Setup:**
+
 ```yaml
 Machines:
   - 2x Client @ 256MB shared-cpu-1x (1 always-on, 1 auto-scale)
@@ -54,10 +57,12 @@ Database:
 ```
 
 **Monthly Costs:**
+
 - Without Prepaid: **$17.78/month**
 - With Prepaid: **$14.22/month** (save $42.72/year)
 
 **When to Upgrade:**
+
 - Response times > 300ms consistently
 - Database approaching 3GB
 - Daily active users approaching 100
@@ -68,12 +73,14 @@ Database:
 ### 📈 Stage 2: Growth (100-1,000 Daily Active Users)
 
 **Traffic Expectations:**
+
 - Daily Active Users: 100-1,000
 - Concurrent Users: 20-100
 - Requests/second: 5-25
 - Database Size: 1-10GB
 
 **Infrastructure Setup:**
+
 ```yaml
 Machines:
   - 2x Client @ 256MB shared-cpu-1x (both always-on)
@@ -88,17 +95,20 @@ Database:
 ```
 
 **Monthly Costs:**
+
 - Without Prepaid: **$46.78/month**
 - With Prepaid: **$39.22/month** (save $90.72/year)
 - Recommendation: **Prepay server machines only**
 
 **Performance Optimizations:**
+
 - Add Cloudflare CDN (free tier)
 - Implement browser caching headers in Caddy
 - Add database query optimization
 - Consider basic Redis caching for sessions
 
 **When to Upgrade:**
+
 - Daily active users approaching 1,000
 - Database connections > 80 concurrent
 - Response times > 200ms at p95
@@ -108,15 +118,17 @@ Database:
 
 ### 💪 Stage 3: Scale (1,000-5,000 Daily Active Users)
 
-**⚠️ CRITICAL DECISION POINT: Switch to Dedicated CPU**
+#### ⚠️ CRITICAL DECISION POINT: Switch to Dedicated CPU
 
 **Traffic Expectations:**
+
 - Daily Active Users: 1,000-5,000
 - Concurrent Users: 100-500
 - Requests/second: 25-125
 - Database Size: 10-50GB
 
 **Infrastructure Setup:**
+
 ```yaml
 Machines:
   - 2x Client @ 512MB shared-cpu-1x (both always-on)
@@ -137,16 +149,19 @@ Additional Services:
 ```
 
 **Monthly Costs:**
+
 - Without Prepaid: **$84.10/month**
 - With Prepaid: **$68.68/month** (save $185.04/year)
 - Recommendation: **Prepay all persistent machines**
 
 **Why Dedicated CPU Now?**
+
 - Cost efficiency: 1x dedicated 4GB ($50.70) vs 4x shared 1GB ($42.80)
 - Better performance: No CPU stealing, predictable response times
 - Higher connection handling: 3,000-5,000 concurrent vs 1,600-2,400
 
 **Performance Optimizations:**
+
 - Implement Redis for session storage
 - Add database connection pooling (PgBouncer)
 - Enable HTTP/2 and compression
@@ -154,6 +169,7 @@ Additional Services:
 - Add monitoring (Grafana/Prometheus)
 
 **When to Upgrade:**
+
 - Daily active users approaching 5,000
 - Database size > 40GB
 - Need for true high availability
@@ -164,12 +180,14 @@ Additional Services:
 ### 🎯 Stage 4: Success (5,000-20,000 Daily Active Users)
 
 **Traffic Expectations:**
+
 - Daily Active Users: 5,000-20,000
 - Concurrent Users: 500-2,000
 - Requests/second: 125-500
 - Database Size: 50-200GB
 
 **Infrastructure Setup:**
+
 ```yaml
 Machines:
   - 2x Client @ 512MB shared-cpu-1x (always-on, different regions)
@@ -194,11 +212,13 @@ Additional Services:
 ```
 
 **Monthly Costs:**
+
 - Without Prepaid: **$182.80/month**
 - With Prepaid: **$150.24/month** (save $390.72/year)
 - Recommendation: **Annual prepayment for maximum savings**
 
 **Performance Optimizations:**
+
 - Implement read replicas for database
 - Add comprehensive caching layer
 - Implement queue system for heavy operations
@@ -206,6 +226,7 @@ Additional Services:
 - Add rate limiting per user/IP
 
 **When to Upgrade:**
+
 - Daily active users approaching 20,000
 - Global user base requiring < 100ms latency
 - Need for zero-downtime deployments
@@ -216,12 +237,14 @@ Additional Services:
 ### 🏢 Stage 5: Enterprise (20,000-100,000+ Daily Active Users)
 
 **Traffic Expectations:**
+
 - Daily Active Users: 20,000-100,000+
 - Concurrent Users: 2,000-10,000+
 - Requests/second: 500-2,500+
 - Database Size: 200GB-1TB+
 
 **Infrastructure Setup:**
+
 ```yaml
 Machines:
   - 4x Client @ 512MB-1GB shared-cpu-1x (global distribution)
@@ -246,11 +269,13 @@ Additional Services:
 ```
 
 **Monthly Costs:**
+
 - Without Prepaid: **$404.90-$800+/month**
 - With Prepaid: **$335.92-$640+/month** (save $800-1,500/year)
 - Recommendation: **Annual contracts with Fly.io for enterprise pricing**
 
 **Enterprise Optimizations:**
+
 - Implement microservices architecture
 - Add API gateway for rate limiting
 - Implement circuit breakers
@@ -297,18 +322,21 @@ Additional Services:
 
 ### Key Metrics to Track
 
-**Response Times (p95)**
+#### Response Times (p95)
+
 - Excellent: < 100ms
 - Good: 100-200ms
 - Acceptable: 200-500ms
 - Needs optimization: > 500ms
 
-**Server Resource Usage**
+#### Server Resource Usage
+
 - Healthy: < 70% CPU, < 80% Memory
 - Warning: 70-85% CPU, 80-90% Memory
 - Critical: > 85% CPU, > 90% Memory
 
-**Database Performance**
+#### Database Performance
+
 - Connection pool utilization < 80%
 - Query time p95 < 100ms
 - Transaction time p95 < 200ms
@@ -317,18 +345,21 @@ Additional Services:
 ### Scaling Triggers Checklist
 
 #### Immediate Scaling Required
+
 - [ ] Response times > 1 second at p95
 - [ ] Server memory usage > 90%
 - [ ] Database connections exhausted
 - [ ] Error rate > 1%
 
 #### Plan Scaling Soon (Within Week)
+
 - [ ] Response times > 500ms at p95
 - [ ] Server CPU consistently > 80%
 - [ ] Database approaching connection limit
 - [ ] Memory usage trending up > 5% daily
 
 #### Consider Scaling (Within Month)
+
 - [ ] User growth > 50% month-over-month
 - [ ] Response times degrading over time
 - [ ] Database size approaching tier limit
@@ -339,6 +370,7 @@ Additional Services:
 ## Cost Optimization Strategies
 
 ### Quick Wins (No Additional Cost)
+
 1. **Aggressive Caching**
    - Browser cache: 1 year for static assets
    - CDN cache: 1 hour for HTML
@@ -355,11 +387,13 @@ Additional Services:
    - Implement query result caching
 
 ### Medium-Term Optimizations ($20-50/month)
+
 1. **Add Redis** for session management ($10-20)
 2. **Implement CDN** (Cloudflare free tier)
 3. **Add monitoring** to prevent over-provisioning
 
 ### Long-Term Architecture ($100+/month)
+
 1. **Read replicas** for database scaling
 2. **Microservices** for independent scaling
 3. **Event-driven** architecture for async processing

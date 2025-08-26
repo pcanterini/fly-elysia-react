@@ -15,11 +15,9 @@ const isNeon = connectionString.includes('neon.tech');
 const connection = postgres(connectionString, {
   // Connection pool settings
   max: isNeon ? 5 : 5,                    // Small pool per server instance
-  min: isNeon ? 1 : undefined,            // Keep 1 connection warm for Neon
   idle_timeout: isNeon ? 10 : 20,         // Quick cleanup for Neon (10 seconds)
   connect_timeout: 30,                    // Generous for cold starts
   max_lifetime: isNeon ? 3600 : undefined, // Refresh Neon connections hourly
-  statement_timeout: isNeon ? 30000 : undefined, // 30 second query timeout for Neon
   
   // SSL configuration
   ssl: isNeon ? 'require' : (connectionString.includes('sslmode=require') ? 'require' : false),
@@ -27,9 +25,8 @@ const connection = postgres(connectionString, {
   // Neon-specific: prepare statements can cause issues
   prepare: !isNeon,
   
-  // Keep connection alive for Neon with proper settings
+  // Keep connection alive for Neon
   keep_alive: isNeon ? 10 : null, // 10 seconds interval for keep-alive
-  keep_alive_delay: isNeon ? 10 : undefined, // 10 seconds initial delay
   
   // Don't transform column names as it can cause issues
   transform: undefined,
