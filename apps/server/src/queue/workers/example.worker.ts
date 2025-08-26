@@ -1,5 +1,10 @@
 import { Worker, Job } from 'bullmq';
-import { createRedisConnection, QUEUE_NAMES } from '../config';
+import Redis from 'ioredis';
+
+// Queue names - must match the ones in lazy-config
+const QUEUE_NAMES = {
+  EXAMPLE: 'example-jobs',
+} as const;
 
 // Define the job data type for type safety
 interface ExampleJobData {
@@ -7,6 +12,33 @@ interface ExampleJobData {
   message?: string;
   [key: string]: any;
 }
+
+// Create Redis connection for worker (only when called)
+const createRedisConnection = () => {
+  if (!process.env.REDIS_URL) {
+    return null;
+  }
+  
+  try {
+    return new Redis(process.env.REDIS_URL, {
+      maxRetriesPerRequest: null,
+      enableOfflineQueue: true,
+      family: 4,
+      connectTimeout: 10000,
+      retryStrategy: (times: number) => {
+        if (times > 10) {
+          console.error('[Worker] Redis connection failed after 10 attempts');
+          return null;
+        }
+        return Math.min(times * 50, 2000);
+      },
+      lazyConnect: true
+    });
+  } catch (error) {
+    console.error('[Worker] Failed to create Redis connection:', error);
+    return null;
+  }
+};
 
 // Create the worker that processes example jobs
 export const createExampleWorker = () => {

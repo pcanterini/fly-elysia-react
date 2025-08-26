@@ -1,6 +1,54 @@
 import { Queue, QueueEvents } from 'bullmq';
-import type Redis from 'ioredis';
-import { createRedisConnection, QUEUE_NAMES } from './config';
+import Redis from 'ioredis';
+
+// Queue names as constants for type safety
+export const QUEUE_NAMES = {
+  EXAMPLE: 'example-jobs',
+  EMAIL: 'email-jobs', // Future: email queue
+  REPORT: 'report-jobs', // Future: report generation
+} as const;
+
+// Create Redis connection for queue operations (only when called)
+const createRedisConnection = () => {
+  if (!process.env.REDIS_URL) {
+    console.log('[Redis] No REDIS_URL configured');
+    return null;
+  }
+  
+  const url = process.env.REDIS_URL;
+  console.log('[Redis] Connecting with URL:', url.replace(/:[^:@]*@/, ':****@'));
+  
+  try {
+    const connection = new Redis(url, {
+      maxRetriesPerRequest: null,
+      enableOfflineQueue: true,
+      family: 4,
+      connectTimeout: 10000,
+      retryStrategy: (times: number) => {
+        if (times > 10) {
+          console.error('[Redis] Connection failed after 10 attempts');
+          return null;
+        }
+        const delay = Math.min(times * 50, 2000);
+        return delay;
+      },
+      lazyConnect: true
+    });
+    
+    connection.on('error', (err) => {
+      console.error('[Redis] Connection error:', err.message);
+    });
+    
+    connection.on('connect', () => {
+      console.log('[Redis] Connected successfully');
+    });
+    
+    return connection;
+  } catch (error) {
+    console.error('[Redis] Failed to create connection:', error);
+    return null;
+  }
+};
 
 // Lazy queue initialization
 let exampleQueue: Queue | null = null;
