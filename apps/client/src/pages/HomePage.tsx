@@ -1,30 +1,21 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
+import { useTheme } from "../hooks/useTheme";
 import { apiClient, queryKeys } from "../lib/api";
 import type { HealthResponse } from "@my-app/shared";
 import {
   FiSun,
   FiMoon,
-  FiCheck,
-  FiX,
   FiRefreshCw,
-  FiPlus,
-  FiUser,
-  FiLogIn,
+  FiServer,
+  FiActivity,
 } from "react-icons/fi";
 
 export function HomePage() {
   const [count, setCount] = useState(0);
-  const [isDarkTheme, setIsDarkTheme] = useState(() => {
-    return (
-      localStorage.getItem("theme") === "dark" ||
-      (!localStorage.getItem("theme") &&
-        window.matchMedia("(prefers-color-scheme: dark)").matches)
-    );
-  });
-
+  const { isDarkTheme, toggleTheme } = useTheme();
   const { isAuthenticated, user } = useAuth();
 
   const {
@@ -40,19 +31,6 @@ export function HomePage() {
     staleTime: 30 * 1000, // Consider data fresh for 30 seconds
   });
 
-  const toggleTheme = () => {
-    setIsDarkTheme(!isDarkTheme);
-  };
-
-  useEffect(() => {
-    if (isDarkTheme) {
-      document.documentElement.classList.add("dark");
-      localStorage.setItem("theme", "dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-      localStorage.setItem("theme", "light");
-    }
-  }, [isDarkTheme]);
 
   return (
     <div className="home-container">
@@ -60,103 +38,94 @@ export function HomePage() {
         <header className="home-header">
           <div className="home-header-content">
             <div className="home-title">
-              <h1>React + Vite + Elysia</h1>
-              <p>Running on Fly.io with Better-Auth</p>
+              <h1>Welcome to Your App</h1>
+              <p>Full-stack TypeScript on Fly.io</p>
             </div>
             <div className="home-actions">
               <button
                 className="btn btn-ghost"
                 onClick={toggleTheme}
                 aria-label="Toggle theme"
+                title={isDarkTheme ? "Switch to light mode" : "Switch to dark mode"}
               >
-                {isDarkTheme ? <FiSun size={20} /> : <FiMoon size={20} />}
+                {isDarkTheme ? <FiSun size={18} /> : <FiMoon size={18} />}
               </button>
               {isAuthenticated ? (
-                <div className="auth-info">
-                  <FiUser size={16} /> Welcome, {user?.name}!{" "}
-                  <Link to="/dashboard" className="btn btn-primary btn-sm">
-                    Dashboard
+                <>
+                  <span className="user-greeting">Hello, {user?.name}</span>
+                  <Link to="/dashboard" className="btn btn-primary">
+                    Go to Dashboard
                   </Link>
-                </div>
+                </>
               ) : (
-                <div className="auth-links">
-                  <Link to="/login" className="btn btn-primary btn-sm">
-                    <FiLogIn size={14} /> Sign In
+                <>
+                  <Link to="/login" className="btn btn-primary">
+                    Sign In
                   </Link>
-                  <Link to="/register" className="btn btn-ghost btn-sm">
+                  <Link to="/register" className="btn btn-ghost">
                     Sign Up
                   </Link>
-                </div>
+                </>
               )}
             </div>
           </div>
         </header>
 
-        <div className="home-grid">
-          <div className="home-card">
-            <h2>API Status</h2>
-            <div className="status-content">
-              <div className="status-indicator">
-                {isLoading && (
-                  <span className="loading">
-                    <FiRefreshCw className="spin" size={16} /> Checking API...
+        <div className="home-main">
+          <div className="home-hero">
+            <h2>Build something amazing</h2>
+            <p>A modern full-stack starter with everything you need</p>
+            
+            <div className="status-row">
+              <div className="status-item">
+                <FiServer size={20} />
+                <div>
+                  <span className="status-label">API Status</span>
+                  <span className="status-value">
+                    {isLoading && "Checking..."}
+                    {healthStatus && !isLoading && <span className="status-ok">Online</span>}
+                    {healthError && !isLoading && <span className="status-error">Offline</span>}
                   </span>
-                )}
-                {healthStatus && !isLoading && (
-                  <span className="status-ok">
-                    <FiCheck size={16} /> API Connected
-                  </span>
-                )}
-                {healthError && !isLoading && (
-                  <span className="status-error">
-                    <FiX size={16} /> API Disconnected
-                  </span>
-                )}
+                </div>
               </div>
+              
+              <div className="status-item">
+                <FiActivity size={20} />
+                <div>
+                  <span className="status-label">Click Counter</span>
+                  <span className="status-value">{count}</span>
+                </div>
+              </div>
+              
               <button
-                className="btn btn-primary btn-block"
-                onClick={(e) => {
+                className="btn btn-ghost"
+                onClick={() => {
+                  setCount(c => c + 1);
                   refetch();
-                  e.currentTarget.blur();
                 }}
-                disabled={isLoading}
+                title="Refresh status and increment counter"
               >
-                <FiRefreshCw size={14} className={isLoading ? "spin" : ""} />
-                {isLoading ? " Checking..." : " Check API"}
+                <FiRefreshCw size={16} className={isLoading ? "spin" : ""} />
               </button>
             </div>
           </div>
-
-          <div className="home-card">
-            <h2>Counter Demo</h2>
-            <div className="counter-content">
-              <p className="counter-display">
-                Count: <strong>{count}</strong>
-              </p>
-              <button
-                className="btn btn-default btn-block"
-                onClick={(e) => {
-                  setCount((count) => count + 1);
-                  e.currentTarget.blur();
-                }}
-              >
-                <FiPlus size={14} /> Increment
-              </button>
+          
+          <div className="features-grid">
+            <div className="feature-card">
+              <h3>Modern Stack</h3>
+              <p>React 19, TypeScript, Vite, and Bun for blazing fast development</p>
             </div>
-          </div>
-
-          <div className="home-card">
-            <h2>About</h2>
-            <div className="about-content">
-              <p>This is a full-stack React app with:</p>
-              <ul>
-                <li>Vite for fast development</li>
-                <li>Elysia backend on Bun</li>
-                <li>Better-Auth authentication</li>
-                <li>PostgreSQL database</li>
-                <li>Terminal.css styling</li>
-                <li>Deployed on Fly.io</li>
-              </ul>
+            <div className="feature-card">
+              <h3>Authentication</h3>
+              <p>Secure user authentication with Better-Auth and session management</p>
+            </div>
+            <div className="feature-card">
+              <h3>Database Ready</h3>
+              <p>PostgreSQL with Drizzle ORM for type-safe database operations</p>
+            </div>
+            <div className="feature-card">
+              <h3>Deploy Anywhere</h3>
+              <p>Optimized for Fly.io with auto-scaling and global distribution</p>
             </div>
           </div>
         </div>
