@@ -4,13 +4,20 @@ FROM oven/bun:1 as builder
 # Install Python and build tools for optional native dependencies
 RUN apt-get update && apt-get install -y python3 python3-pip build-essential && rm -rf /var/lib/apt/lists/*
 
+WORKDIR /app
+
+# Copy workspace config and package files
+COPY package.json bun.lock ./
+COPY apps/client/package.json ./apps/client/
+COPY packages/shared/package.json ./packages/shared/
+
+# Copy shared package source
+COPY packages/shared ./packages/shared
+
 WORKDIR /app/apps/client
 
-# Copy only client package.json
-COPY apps/client/package.json ./
-
-# Install client dependencies (build tools needed for better-auth optional deps)
-RUN bun install
+# Install client dependencies (will resolve workspace dependencies)
+RUN cd /app && bun install
 
 # Copy client source
 COPY apps/client ./

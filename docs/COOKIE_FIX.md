@@ -63,7 +63,35 @@ fetch(url, {
 
 3. **betterAuth API**: The `advanced.cookies.session_token.attributes` is the correct way to configure cookie attributes in betterAuth.
 
+## Local Development Setup
+
+For local Docker development, we use a separate `Dockerfile.dev` that builds without setting `NODE_ENV`. This ensures the development configuration is used:
+
+### Dockerfile.dev
+```dockerfile
+# Build the server without NODE_ENV set
+# Bun will default to development mode when NODE_ENV is not set
+RUN cd apps/server && bun run build
+```
+
+This results in:
+- `isProduction = false`
+- Cookies set with `SameSite=Lax` (works on localhost)
+- `Secure=false` (allows HTTP in development)
+
 ## Testing
+
+### Local Development
+```bash
+# Start the full stack locally
+docker-compose up -d
+
+# Test authentication from Docker client origin
+curl -X POST http://localhost:3001/api/auth/sign-in/email \
+  -H "Content-Type: application/json" \
+  -H "Origin: http://localhost" \
+  -d '{"email":"test@example.com","password":"password123"}'
+```
 
 ### Local Production Build
 ```bash

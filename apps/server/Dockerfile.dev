@@ -8,6 +8,10 @@ WORKDIR /app
 # Copy package files for dependency installation
 COPY package.json bun.lock ./
 COPY apps/server/package.json ./apps/server/
+COPY packages/shared/package.json ./packages/shared/
+
+# Copy shared package source (needed for workspace dependencies)
+COPY packages/shared ./packages/shared
 
 # Install dependencies
 RUN bun install

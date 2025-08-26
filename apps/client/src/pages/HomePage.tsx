@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import { apiClient, queryKeys } from "../lib/api";
+import type { HealthResponse } from "@my-app/shared";
 import {
   FiSun,
   FiMoon,
@@ -12,11 +14,6 @@ import {
   FiUser,
   FiLogIn,
 } from "react-icons/fi";
-
-interface HealthStatus {
-  status: string;
-  message: string;
-}
 
 export function HomePage() {
   const [count, setCount] = useState(0);
@@ -30,28 +27,17 @@ export function HomePage() {
 
   const { isAuthenticated, user } = useAuth();
 
-  const API_URL = import.meta.env.DEV
-    ? "http://localhost:3001"
-    : import.meta.env.VITE_API_URL || "https://bun-app-server.fly.dev";
-
   const {
     data: healthStatus,
     error: healthError,
     isLoading,
     refetch,
-  } = useQuery<HealthStatus>({
-    queryKey: ["health"],
-    queryFn: async () => {
-      const response = await fetch(`${API_URL}/api/health`, {
-        credentials: 'include',
-      });
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      return response.json();
-    },
+  } = useQuery<HealthResponse>({
+    queryKey: queryKeys.health,
+    queryFn: () => apiClient.health(),
     retry: 1,
     refetchOnWindowFocus: false,
+    staleTime: 30 * 1000, // Consider data fresh for 30 seconds
   });
 
   const toggleTheme = () => {

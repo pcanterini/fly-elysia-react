@@ -1,15 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { auth } from '../lib/auth';
-
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  emailVerified: boolean;
-  image?: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
+import type { User } from '@my-app/shared';
 
 interface AuthContextType {
   user: User | null;
@@ -32,7 +23,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(true);
       const session = await auth.getSession();
       if (session.data?.user) {
-        setUser(session.data.user as User);
+        setUser(session.data.user);
       } else {
         setUser(null);
       }
@@ -49,50 +40,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    try {
-      const result = await auth.signIn.email({
-        email,
-        password,
-      });
-      
-      if (result.error) {
-        throw new Error(result.error.message);
-      }
-      
-      await fetchUser();
-    } catch (error) {
-      console.error('Sign in error:', error);
-      throw error;
+    const result = await auth.signIn.email({
+      email,
+      password,
+    });
+    
+    if (result.error) {
+      throw new Error(result.error.message);
     }
+    
+    await fetchUser();
   };
 
   const signUp = async (email: string, password: string, name: string) => {
-    try {
-      const result = await auth.signUp.email({
-        email,
-        password,
-        name,
-      });
-      
-      if (result.error) {
-        throw new Error(result.error.message);
-      }
-      
-      await fetchUser();
-    } catch (error) {
-      console.error('Sign up error:', error);
-      throw error;
+    const result = await auth.signUp.email({
+      email,
+      password,
+      name,
+    });
+    
+    if (result.error) {
+      throw new Error(result.error.message);
     }
+    
+    await fetchUser();
   };
 
   const signOut = async () => {
-    try {
-      await auth.signOut();
-      setUser(null);
-    } catch (error) {
-      console.error('Sign out error:', error);
-      throw error;
-    }
+    await auth.signOut();
+    setUser(null);
   };
 
   const value: AuthContextType = {

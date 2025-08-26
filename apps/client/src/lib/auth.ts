@@ -1,11 +1,8 @@
 import { createAuthClient } from 'better-auth/client';
-
-const baseURL = import.meta.env.DEV 
-  ? 'http://localhost:3001'  // Vite dev server
-  : import.meta.env.VITE_API_URL || 'https://bun-app-server.fly.dev';  // Docker dev or Production
+import { API_BASE_URL } from './api';
 
 export const authClient = createAuthClient({
-  baseURL,
+  baseURL: API_BASE_URL,
   fetchOptions: {
     credentials: 'include', // Include cookies for session management
   },
