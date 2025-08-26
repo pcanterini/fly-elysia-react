@@ -5,14 +5,31 @@ import Redis from 'ioredis';
 export const createRedisConnection = () => {
   // Use REDIS_URL if available (production), otherwise fall back to host/port (development)
   if (process.env.REDIS_URL) {
-    return new Redis(process.env.REDIS_URL, {
-      maxRetriesPerRequest: null,
-      enableOfflineQueue: true,
-      retryStrategy: (times: number) => {
-        const delay = Math.min(times * 50, 2000);
-        return delay;
-      }
-    });
+    // Upstash Redis URLs need special handling
+    const url = process.env.REDIS_URL;
+    
+    // Parse Upstash URL format: redis://default:password@host:port
+    try {
+      const parsedUrl = new URL(url);
+      
+      return new Redis({
+        host: parsedUrl.hostname,
+        port: Number(parsedUrl.port) || 6379,
+        password: parsedUrl.password || undefined,
+        username: parsedUrl.username === 'default' ? undefined : parsedUrl.username,
+        maxRetriesPerRequest: null,
+        enableOfflineQueue: true,
+        tls: parsedUrl.protocol === 'rediss:' ? {} : undefined,
+        family: 4, // Force IPv4 for Upstash compatibility
+        retryStrategy: (times: number) => {
+          const delay = Math.min(times * 50, 2000);
+          return delay;
+        }
+      });
+    } catch (error) {
+      console.error('Failed to parse REDIS_URL:', error);
+      throw error;
+    }
   }
   
   return new Redis({
