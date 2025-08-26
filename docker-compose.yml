@@ -44,6 +44,7 @@ services:
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/fly_elysia_react
       - BETTER_AUTH_SECRET=dev-secret-key-change-in-production
       - BETTER_AUTH_URL=http://localhost:3001
+      - REDIS_URL=redis://redis:6379
       - REDIS_HOST=redis
       - REDIS_PORT=6379
     depends_on:
@@ -59,20 +60,29 @@ services:
       - ./apps/server/tsconfig.json:/app/apps/server/tsconfig.json:cached
       - ./apps/server/drizzle.config.ts:/app/apps/server/drizzle.config.ts:cached
       - ./apps/server/drizzle:/app/apps/server/drizzle:cached
-      - ./apps/server/dist:/app/apps/server/dist:cached
+      - ./packages/shared:/app/packages/shared:cached
       - /app/node_modules
       - /app/apps/server/node_modules
 
   client:
     build:
       context: .
-      dockerfile: apps/client/Dockerfile
+      dockerfile: apps/client/Dockerfile.dev
     ports:
-      - "80:80"
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:3001
     depends_on:
       - server
     networks:
       - app-network
+    volumes:
+      - ./apps/client/src:/app/apps/client/src:cached
+      - ./apps/client/public:/app/apps/client/public:cached
+      - ./apps/client/index.html:/app/apps/client/index.html:cached
+      - ./packages/shared:/app/packages/shared:cached
+      - /app/node_modules
+      - /app/apps/client/node_modules
 
 volumes:
   postgres_data:

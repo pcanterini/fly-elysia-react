@@ -8,6 +8,8 @@ if (!connectionString) {
   throw new Error('DATABASE_URL environment variable is required');
 }
 
+console.log('Database URL:', connectionString.replace(/:[^:@]+@/, ':****@')); // Log URL with password hidden
+
 const isProduction = process.env.NODE_ENV === 'production';
 const isNeon = connectionString.includes('neon.tech');
 

@@ -19,16 +19,10 @@ RUN bun install
 # Copy server source code
 COPY apps/server ./apps/server
 
-# Build the server without NODE_ENV set
-# Bun will default to development mode when NODE_ENV is not set
-RUN cd apps/server && bun run build
-
+# Don't build in development mode - we'll use watch mode instead
 WORKDIR /app/apps/server
-
-# Copy and set up entrypoint script
-COPY apps/server/docker-entrypoint.sh ./
-RUN chmod +x docker-entrypoint.sh
 
 EXPOSE 3001
 
-CMD ["./docker-entrypoint.sh"]
+# Use dev command for hot reloading
+CMD ["bun", "run", "dev"]

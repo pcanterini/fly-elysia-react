@@ -10,12 +10,17 @@ export const QUEUE_NAMES = {
 
 // Create Redis connection for queue operations (only when called)
 const createRedisConnection = () => {
-  if (!process.env.REDIS_URL) {
-    console.log('[Redis] No REDIS_URL configured');
+  // Also check for local Redis configuration
+  const redisUrl = process.env.REDIS_URL || 
+    (process.env.REDIS_HOST && process.env.REDIS_PORT ? 
+      `redis://${process.env.REDIS_HOST}:${process.env.REDIS_PORT}` : null);
+  
+  if (!redisUrl) {
+    console.log('[Redis] No Redis configuration found (REDIS_URL or REDIS_HOST/PORT)');
     return null;
   }
   
-  const url = process.env.REDIS_URL;
+  const url = redisUrl;
   console.log('[Redis] Connecting with URL:', url.replace(/:[^:@]*@/, ':****@'));
   
   try {
@@ -48,7 +53,7 @@ const createRedisConnection = () => {
         const delay = Math.min(times * 50, 2000);
         return delay;
       },
-      lazyConnect: true
+      lazyConnect: false  // Changed to false to connect immediately
     });
     
     connection.on('error', (err) => {
@@ -77,8 +82,13 @@ export const initializeQueues = () => {
     return { queue: exampleQueue, events: exampleQueueEvents };
   }
   
-  if (!process.env.REDIS_URL) {
-    console.log('[Queue] No REDIS_URL configured, queues disabled');
+  // Check for any Redis configuration
+  const redisUrl = process.env.REDIS_URL || 
+    (process.env.REDIS_HOST && process.env.REDIS_PORT ? 
+      `redis://${process.env.REDIS_HOST}:${process.env.REDIS_PORT}` : null);
+  
+  if (!redisUrl) {
+    console.log('[Queue] No Redis configuration found (REDIS_URL or REDIS_HOST/PORT), queues disabled');
     initializationFailed = true;
     return { queue: null, events: null };
   }
@@ -109,12 +119,18 @@ export const initializeQueues = () => {
       },
     });
     
+    // Create a second connection for queue events
+    const eventsConnection = createRedisConnection();
+    if (!eventsConnection) {
+      throw new Error('Failed to create Redis connection for events');
+    }
+    
     exampleQueueEvents = new QueueEvents(QUEUE_NAMES.EXAMPLE, {
-      connection: createRedisConnection() as Redis,
+      connection: eventsConnection as Redis,
     });
     
     initialized = true;
-    console.log('[Queue] Queues initialized successfully');
+    console.log('[Queue] Queues initialized successfully - queue created:', !!exampleQueue, 'events created:', !!exampleQueueEvents);
     return { queue: exampleQueue, events: exampleQueueEvents };
   } catch (error) {
     console.error('[Queue] Failed to initialize queues:', error);
@@ -124,9 +140,12 @@ export const initializeQueues = () => {
 };
 
 export const getQueue = () => {
+  console.log('[getQueue] State before - initialized:', initialized, 'failed:', initializationFailed, 'queue:', !!exampleQueue);
   if (!initialized && !initializationFailed) {
+    console.log('[getQueue] Calling initializeQueues...');
     initializeQueues();
   }
+  console.log('[getQueue] State after - initialized:', initialized, 'failed:', initializationFailed, 'queue:', !!exampleQueue);
   return exampleQueue;
 };
 

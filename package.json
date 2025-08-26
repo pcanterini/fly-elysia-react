@@ -8,7 +8,7 @@
   ],
   "scripts": {
     "dev": "bun run db:start && concurrently -p name -c \"bgBlue.bold,bgMagenta.bold\" \"bun:dev:client\" \"bun:dev:server\"",
-    "db:start": "docker-compose up postgres -d",
+    "db:start": "docker-compose up postgres redis -d",
     "dev:client": "cd apps/client && bun run dev",
     "dev:server": "cd apps/server && bun run dev",
     "build": "bun run build:client && bun run build:server",

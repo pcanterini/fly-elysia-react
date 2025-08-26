@@ -6,6 +6,7 @@ import { apiRateLimit, authRateLimit } from './middleware/rateLimit'
 import { testDatabaseConnection } from './db'
 import { queueService } from './queue/service'
 import { startExampleWorker, stopExampleWorker } from './queue/workers/example.worker'
+import { initializeQueues } from './queue/lazy-config'
 import type { HealthResponse, CreateJobRequest, JobAction } from '@my-app/shared'
 
 const allowedOrigins = [
@@ -94,7 +95,9 @@ const app = new Elysia()
     app
       // Get queue statistics
       .get('/stats', async ({ set }) => {
+        console.log('[API /stats] Checking queue availability...');
         if (!queueService.isAvailable()) {
+          console.log('[API /stats] Queue is NOT available');
           set.status = 503;
           return {
             error: 'Service Unavailable',
@@ -183,6 +186,10 @@ const app = new Elysia()
   })
 
 console.log(`🦊 Elysia is running at http://localhost:${app.server?.port}`)
+console.log('[Server] Starting with queue initialization...')
+
+// Initialize queues on startup
+initializeQueues();
 
 // Start the queue worker if not explicitly disabled
 if (process.env.RUN_WORKERS !== 'false') {

@@ -15,7 +15,10 @@ export class QueueService {
    * Check if queue is available
    */
   isAvailable(): boolean {
-    return getQueue() !== null;
+    const queue = getQueue();
+    const available = queue !== null;
+    console.log('[QueueService] isAvailable check - queue exists:', !!queue);
+    return available;
   }
 
   /**

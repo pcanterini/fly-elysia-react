@@ -1,0 +1,24 @@
+FROM oven/bun:1
+
+WORKDIR /app
+
+# Copy workspace config and package files
+COPY package.json bun.lock ./
+COPY apps/client/package.json ./apps/client/
+COPY packages/shared/package.json ./packages/shared/
+
+# Copy shared package source
+COPY packages/shared ./packages/shared
+
+# Install dependencies
+RUN bun install
+
+# Copy client source
+COPY apps/client ./apps/client
+
+WORKDIR /app/apps/client
+
+EXPOSE 5173
+
+# Use dev server with host flag for Docker
+CMD ["bun", "run", "dev", "--host"]
