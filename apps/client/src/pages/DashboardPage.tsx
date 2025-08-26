@@ -11,7 +11,8 @@ import {
   FiSettings,
   FiLock,
   FiHome,
-  FiLogOut
+  FiLogOut,
+  FiList
 } from 'react-icons/fi';
 
 export function DashboardPage() {
@@ -44,6 +45,9 @@ export function DashboardPage() {
               >
                 {isDarkTheme ? <FiSun size={18} /> : <FiMoon size={18} />}
               </button>
+              <Link to="/jobs" className="btn btn-ghost">
+                <FiList size={16} /> Jobs
+              </Link>
               <Link to="/" className="btn btn-ghost">
                 <FiHome size={16} /> Home
               </Link>

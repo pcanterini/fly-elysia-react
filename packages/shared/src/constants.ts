@@ -7,6 +7,13 @@ export const API_ENDPOINTS = {
     SESSION: '/api/auth/session',
   },
   HEALTH: '/api/health',
+  JOBS: {
+    LIST: '/api/jobs',
+    CREATE: '/api/jobs',
+    GET: (id: string) => `/api/jobs/${id}` as const,
+    ACTION: (id: string) => `/api/jobs/${id}/action` as const,
+    STATS: '/api/jobs/stats',
+  },
 } as const;
 
 // Error codes

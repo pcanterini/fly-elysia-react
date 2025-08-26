@@ -4,7 +4,12 @@ import type {
   HealthResponse,
   AuthResponse,
   SignInRequest,
-  SignUpRequest 
+  SignUpRequest,
+  Job,
+  CreateJobRequest,
+  JobListResponse,
+  QueueStats,
+  JobActionResponse
 } from '@my-app/shared';
 
 // API configuration
@@ -161,6 +166,28 @@ export const apiClient = {
     
     session: () => 
       api.get<AuthResponse>(API_ENDPOINTS.AUTH.SESSION),
+  },
+
+  jobs: {
+    create: (data: CreateJobRequest) => 
+      api.post<{ job: Job }>(API_ENDPOINTS.JOBS.CREATE, data),
+    
+    list: (page?: number, pageSize?: number, states?: string[]) => {
+      const params: Record<string, string> = {};
+      if (page) params.page = page.toString();
+      if (pageSize) params.pageSize = pageSize.toString();
+      if (states?.length) params.states = states.join(',');
+      return api.get<JobListResponse>(API_ENDPOINTS.JOBS.LIST, { params });
+    },
+    
+    get: (id: string) => 
+      api.get<{ job: Job }>(API_ENDPOINTS.JOBS.GET(id)),
+    
+    action: (id: string, action: 'retry' | 'remove' | 'promote') => 
+      api.post<JobActionResponse>(API_ENDPOINTS.JOBS.ACTION(id), { action, jobId: id }),
+    
+    stats: () => 
+      api.get<QueueStats>(API_ENDPOINTS.JOBS.STATS),
   },
 };
 

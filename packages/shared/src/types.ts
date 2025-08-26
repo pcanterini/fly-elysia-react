@@ -72,3 +72,57 @@ export interface FormState<T = any> {
   isSubmitting: boolean;
   isValid: boolean;
 }
+
+// Job Queue types
+export type JobStatus = 'waiting' | 'active' | 'completed' | 'failed' | 'delayed' | 'paused';
+
+export interface Job {
+  id: string;
+  name: string;
+  status: JobStatus;
+  progress: number;
+  data: Record<string, any>;
+  result?: any;
+  error?: string;
+  createdAt: string;
+  updatedAt: string;
+  processedOn?: string;
+  finishedOn?: string;
+  attempts: number;
+  maxAttempts: number;
+}
+
+export interface CreateJobRequest {
+  name: string;
+  data?: Record<string, any>;
+  delay?: number;
+  priority?: number;
+}
+
+export interface JobListResponse {
+  jobs: Job[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface QueueStats {
+  waiting: number;
+  active: number;
+  completed: number;
+  failed: number;
+  delayed: number;
+  paused: number;
+  total: number;
+}
+
+export interface JobAction {
+  action: 'retry' | 'remove' | 'promote';
+  jobId: string;
+}
+
+export interface JobActionResponse {
+  success: boolean;
+  message: string;
+  job?: Job;
+}
