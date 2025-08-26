@@ -16,13 +16,13 @@ export const API_BASE_URL = import.meta.env.DEV
 export class ApiClientError extends Error {
   statusCode: number;
   code: string;
-  details?: Record<string, any>;
+  details?: Record<string, unknown>;
 
   constructor(
     message: string,
     statusCode: number,
     code: string,
-    details?: Record<string, any>
+    details?: Record<string, unknown>
   ) {
     super(message);
     this.name = 'ApiClientError';
@@ -34,7 +34,7 @@ export class ApiClientError extends Error {
 
 // API client configuration
 interface RequestConfig extends Omit<RequestInit, 'body'> {
-  body?: any;
+  body?: unknown;
   params?: Record<string, string>;
 }
 
@@ -129,11 +129,11 @@ export const api = {
     request<T>(endpoint, { ...config, method: 'GET' }),
 
   // POST request
-  post: <T>(endpoint: string, body?: any, config?: RequestConfig) => 
+  post: <T>(endpoint: string, body?: unknown, config?: RequestConfig) => 
     request<T>(endpoint, { ...config, method: 'POST', body }),
 
   // PUT request
-  put: <T>(endpoint: string, body?: any, config?: RequestConfig) => 
+  put: <T>(endpoint: string, body?: unknown, config?: RequestConfig) => 
     request<T>(endpoint, { ...config, method: 'PUT', body }),
 
   // DELETE request
@@ -141,7 +141,7 @@ export const api = {
     request<T>(endpoint, { ...config, method: 'DELETE' }),
 
   // PATCH request
-  patch: <T>(endpoint: string, body?: any, config?: RequestConfig) => 
+  patch: <T>(endpoint: string, body?: unknown, config?: RequestConfig) => 
     request<T>(endpoint, { ...config, method: 'PATCH', body }),
 };
 
