@@ -93,7 +93,15 @@ const app = new Elysia()
   .group('/api/jobs', (app) =>
     app
       // Get queue statistics
-      .get('/stats', async () => {
+      .get('/stats', async ({ set }) => {
+        if (!queueService.isAvailable()) {
+          set.status = 503;
+          return {
+            error: 'Service Unavailable',
+            message: 'Queue service is currently unavailable. Redis connection failed.',
+            code: 'QUEUE_UNAVAILABLE'
+          };
+        }
         try {
           const stats = await queueService.getQueueStats();
           return stats;

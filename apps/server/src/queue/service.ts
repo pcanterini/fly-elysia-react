@@ -12,9 +12,20 @@ import type {
 
 export class QueueService {
   /**
+   * Check if queue is available
+   */
+  isAvailable(): boolean {
+    return exampleQueue !== null;
+  }
+
+  /**
    * Create a new job
    */
   async createJob(data: CreateJobRequest): Promise<Job> {
+    if (!exampleQueue) {
+      throw new Error('Queue service is not available. Redis connection failed.');
+    }
+    
     const bullJob = await exampleQueue.add(
       data.name || 'example-job',
       data.data || {},
@@ -31,6 +42,9 @@ export class QueueService {
    * Get a single job by ID
    */
   async getJob(id: string): Promise<Job | null> {
+    if (!exampleQueue) {
+      throw new Error('Queue service is not available. Redis connection failed.');
+    }
     const job = await exampleQueue.getJob(id);
     return job ? this.formatJob(job) : null;
   }
@@ -46,6 +60,15 @@ export class QueueService {
     const statesToFetch = states || ['waiting', 'active', 'completed', 'failed', 'delayed', 'paused'];
     const start = (page - 1) * pageSize;
     const end = start + pageSize - 1;
+    
+    if (!exampleQueue) {
+      return {
+        jobs: [],
+        total: 0,
+        page,
+        pageSize,
+      };
+    }
     
     // Fetch jobs from all requested states
     const jobPromises = statesToFetch.map(state => 
@@ -77,6 +100,18 @@ export class QueueService {
    * Get queue statistics
    */
   async getQueueStats(): Promise<QueueStats> {
+    if (!exampleQueue) {
+      return {
+        waiting: 0,
+        active: 0,
+        completed: 0,
+        failed: 0,
+        delayed: 0,
+        paused: 0,
+        total: 0,
+      };
+    }
+    
     const counts = await exampleQueue.getJobCounts(
       'waiting',
       'active', 
@@ -101,6 +136,13 @@ export class QueueService {
    * Perform action on a job (retry, remove, promote)
    */
   async performJobAction(jobId: string, action: JobAction['action']): Promise<JobActionResponse> {
+    if (!exampleQueue) {
+      return {
+        success: false,
+        message: 'Queue service is not available. Redis connection failed.',
+      };
+    }
+    
     const job = await exampleQueue.getJob(jobId);
     
     if (!job) {
@@ -169,6 +211,9 @@ export class QueueService {
    * Clean completed/failed jobs
    */
   async cleanJobs(grace: number = 0, limit: number = 100, status: 'completed' | 'failed' = 'completed'): Promise<string[]> {
+    if (!exampleQueue) {
+      return [];
+    }
     return await exampleQueue.clean(grace, limit, status);
   }
 
@@ -176,11 +221,15 @@ export class QueueService {
    * Pause/Resume the queue
    */
   async pauseQueue(): Promise<void> {
-    await exampleQueue.pause();
+    if (exampleQueue) {
+      await exampleQueue.pause();
+    }
   }
 
   async resumeQueue(): Promise<void> {
-    await exampleQueue.resume();
+    if (exampleQueue) {
+      await exampleQueue.resume();
+    }
   }
 
   /**

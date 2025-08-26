@@ -5,48 +5,53 @@ import Redis from 'ioredis';
 export const createRedisConnection = () => {
   // Use REDIS_URL if available (production), otherwise fall back to host/port (development)
   if (process.env.REDIS_URL) {
-    // Upstash Redis URLs need special handling
     const url = process.env.REDIS_URL;
-    console.log('Connecting to Redis with URL format detected');
+    console.log('Connecting to Redis with URL:', url.replace(/:[^:@]*@/, ':****@'));
     
-    // Parse Upstash URL format: redis://default:password@host:port or rediss://...
     try {
-      const parsedUrl = new URL(url);
-      console.log(`Redis host: ${parsedUrl.hostname}, port: ${parsedUrl.port || 6379}, TLS: ${parsedUrl.protocol === 'rediss:'}`);
-      
-      const config = {
-        host: parsedUrl.hostname,
-        port: Number(parsedUrl.port) || 6379,
-        password: parsedUrl.password || undefined,
-        username: parsedUrl.username === 'default' ? undefined : parsedUrl.username,
+      // Try direct connection with URL string first (ioredis handles parsing)
+      const connection = new Redis(url, {
         maxRetriesPerRequest: null,
         enableOfflineQueue: true,
-        tls: parsedUrl.protocol === 'rediss:' ? {
-          rejectUnauthorized: false // Upstash uses self-signed certs
-        } : undefined,
-        family: 4, // Force IPv4 for Upstash compatibility
+        family: 4, // Force IPv4
+        connectTimeout: 10000,
         retryStrategy: (times: number) => {
           const delay = Math.min(times * 50, 2000);
           console.log(`Redis retry attempt ${times}, waiting ${delay}ms`);
+          if (times > 10) {
+            console.error('Redis connection failed after 10 attempts');
+            return null; // Stop retrying after 10 attempts
+          }
           return delay;
         },
-        lazyConnect: true // Don't connect immediately
-      };
-      
-      const connection = new Redis(config);
+        lazyConnect: true,
+        // DNS resolution options
+        lookup: (hostname, options, callback) => {
+          console.log(`Resolving hostname: ${hostname}`);
+          // Use default DNS lookup
+          require('dns').lookup(hostname, options, callback);
+        }
+      });
       
       // Add error handler to prevent unhandled rejections
       connection.on('error', (err) => {
         console.error('Redis connection error:', err.message);
+        if (err.message.includes('ENOTFOUND')) {
+          console.error(`Cannot resolve hostname. Please check if ${url.split('@')[1]?.split(':')[0]} is accessible from this network.`);
+        }
       });
       
       connection.on('connect', () => {
         console.log('Redis connected successfully');
       });
       
+      connection.on('ready', () => {
+        console.log('Redis connection ready');
+      });
+      
       return connection;
     } catch (error) {
-      console.error('Failed to parse REDIS_URL:', error);
+      console.error('Failed to create Redis connection:', error);
       throw error;
     }
   }
@@ -65,8 +70,26 @@ export const createRedisConnection = () => {
   });
 };
 
-// Create connection instances
-export const redisConnection = createRedisConnection();
+// Create connection instances with error handling
+let redisConnectionInstance: Redis | null = null;
+let connectionAttempted = false;
+let connectionFailed = false;
+
+export const getRedisConnection = () => {
+  if (!connectionAttempted && process.env.REDIS_URL) {
+    connectionAttempted = true;
+    try {
+      redisConnectionInstance = createRedisConnection();
+    } catch (error) {
+      console.error('Failed to initialize Redis connection:', error);
+      connectionFailed = true;
+    }
+  }
+  return redisConnectionInstance;
+};
+
+// Initialize connection only if REDIS_URL is set
+export const redisConnection = process.env.REDIS_URL ? getRedisConnection() : null;
 
 // Queue names as constants for type safety
 export const QUEUE_NAMES = {
@@ -75,9 +98,9 @@ export const QUEUE_NAMES = {
   REPORT: 'report-jobs', // Future: report generation
 } as const;
 
-// Create queues with shared configuration
-export const exampleQueue = new Queue(QUEUE_NAMES.EXAMPLE, {
-  connection: redisConnection,
+// Create queues with shared configuration (only if Redis is available)
+export const exampleQueue = redisConnection ? new Queue(QUEUE_NAMES.EXAMPLE, {
+  connection: redisConnection as Redis,
   defaultJobOptions: {
     attempts: 3,
     backoff: {
@@ -92,19 +115,19 @@ export const exampleQueue = new Queue(QUEUE_NAMES.EXAMPLE, {
       count: 50, // Keep last 50 failed jobs
     },
   },
-});
+}) : null;
 
-// Queue events for monitoring
-export const exampleQueueEvents = new QueueEvents(QUEUE_NAMES.EXAMPLE, {
+// Queue events for monitoring (only if Redis is available)
+export const exampleQueueEvents = redisConnection ? new QueueEvents(QUEUE_NAMES.EXAMPLE, {
   connection: createRedisConnection(), // Separate connection for events
-});
+}) : null;
 
 // Graceful shutdown
 export const closeQueues = async () => {
   try {
-    await exampleQueue.close();
-    await exampleQueueEvents.close();
-    redisConnection.disconnect();
+    if (exampleQueue) await exampleQueue.close();
+    if (exampleQueueEvents) await exampleQueueEvents.close();
+    if (redisConnection) redisConnection.disconnect();
     console.log('Queue connections closed gracefully');
   } catch (error) {
     console.error('Error closing queue connections:', error);

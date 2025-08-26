@@ -10,6 +10,13 @@ interface ExampleJobData {
 
 // Create the worker that processes example jobs
 export const createExampleWorker = () => {
+  const connection = createRedisConnection();
+  
+  if (!connection) {
+    console.warn('[Worker] Redis connection not available, worker will not start');
+    return null;
+  }
+  
   const worker = new Worker<ExampleJobData>(
     QUEUE_NAMES.EXAMPLE,
     async (job: Job<ExampleJobData>) => {
@@ -45,7 +52,7 @@ export const createExampleWorker = () => {
       }
     },
     {
-      connection: createRedisConnection(),
+      connection: connection,
       concurrency: 5, // Process up to 5 jobs concurrently
       autorun: true, // Start processing immediately
       // Worker settings for better performance and monitoring
@@ -87,8 +94,13 @@ let workerInstance: Worker | null = null;
 
 export const startExampleWorker = () => {
   if (!workerInstance) {
-    workerInstance = createExampleWorker();
-    console.log('[Worker] Example worker started');
+    const worker = createExampleWorker();
+    if (worker) {
+      workerInstance = worker;
+      console.log('[Worker] Example worker started');
+    } else {
+      console.warn('[Worker] Example worker could not start - Redis not available');
+    }
   }
   return workerInstance;
 };
