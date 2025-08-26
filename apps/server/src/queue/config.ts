@@ -119,7 +119,7 @@ export const exampleQueue = redisConnection ? new Queue(QUEUE_NAMES.EXAMPLE, {
 
 // Queue events for monitoring (only if Redis is available)
 export const exampleQueueEvents = redisConnection ? new QueueEvents(QUEUE_NAMES.EXAMPLE, {
-  connection: createRedisConnection(), // Separate connection for events
+  connection: getRedisConnection() || undefined, // Use existing connection or undefined
 }) : null;
 
 // Graceful shutdown

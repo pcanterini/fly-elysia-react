@@ -2,6 +2,13 @@ import { startExampleWorker } from './queue/workers/example.worker';
 
 console.log('🚀 Starting worker process...');
 
+// Check if Redis is configured
+if (!process.env.REDIS_URL) {
+  console.error('❌ Worker cannot start: REDIS_URL not configured');
+  console.log('Worker process will exit');
+  process.exit(1);
+}
+
 // Start the worker
 const worker = startExampleWorker();
 
