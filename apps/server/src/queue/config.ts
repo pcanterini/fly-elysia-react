@@ -1,31 +1,50 @@
 import { Queue, QueueEvents } from 'bullmq';
 import Redis from 'ioredis';
 
-// Create Redis connection for queue operations
+// Create Redis connection for queue operations  
 export const createRedisConnection = () => {
   // Use REDIS_URL if available (production), otherwise fall back to host/port (development)
   if (process.env.REDIS_URL) {
     // Upstash Redis URLs need special handling
     const url = process.env.REDIS_URL;
+    console.log('Connecting to Redis with URL format detected');
     
-    // Parse Upstash URL format: redis://default:password@host:port
+    // Parse Upstash URL format: redis://default:password@host:port or rediss://...
     try {
       const parsedUrl = new URL(url);
+      console.log(`Redis host: ${parsedUrl.hostname}, port: ${parsedUrl.port || 6379}, TLS: ${parsedUrl.protocol === 'rediss:'}`);
       
-      return new Redis({
+      const config = {
         host: parsedUrl.hostname,
         port: Number(parsedUrl.port) || 6379,
         password: parsedUrl.password || undefined,
         username: parsedUrl.username === 'default' ? undefined : parsedUrl.username,
         maxRetriesPerRequest: null,
         enableOfflineQueue: true,
-        tls: parsedUrl.protocol === 'rediss:' ? {} : undefined,
+        tls: parsedUrl.protocol === 'rediss:' ? {
+          rejectUnauthorized: false // Upstash uses self-signed certs
+        } : undefined,
         family: 4, // Force IPv4 for Upstash compatibility
         retryStrategy: (times: number) => {
           const delay = Math.min(times * 50, 2000);
+          console.log(`Redis retry attempt ${times}, waiting ${delay}ms`);
           return delay;
-        }
+        },
+        lazyConnect: true // Don't connect immediately
+      };
+      
+      const connection = new Redis(config);
+      
+      // Add error handler to prevent unhandled rejections
+      connection.on('error', (err) => {
+        console.error('Redis connection error:', err.message);
       });
+      
+      connection.on('connect', () => {
+        console.log('Redis connected successfully');
+      });
+      
+      return connection;
     } catch (error) {
       console.error('Failed to parse REDIS_URL:', error);
       throw error;
