@@ -1,14 +1,43 @@
 services:
+  postgres:
+    image: postgres:16
+    container_name: postgres-db
+    environment:
+      POSTGRES_DB: fly_elysia_react
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   server:
     build:
       context: .
-      dockerfile: apps/server/Dockerfile
+      dockerfile: apps/server/Dockerfile.dev
     ports:
       - "3001:3001"
     environment:
-      - NODE_ENV=production
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/fly_elysia_react
+      - BETTER_AUTH_SECRET=dev-secret-key-change-in-production
+      - BETTER_AUTH_URL=http://localhost:3001
+    depends_on:
+      postgres:
+        condition: service_healthy
     networks:
       - app-network
+    volumes:
+      - ./apps/server:/app/apps/server:cached
+      - /app/node_modules
+      - /app/apps/server/node_modules
 
   client:
     build:
@@ -20,6 +49,9 @@ services:
       - server
     networks:
       - app-network
+
+volumes:
+  postgres_data:
 
 networks:
   app-network:

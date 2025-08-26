@@ -7,41 +7,10 @@
 
 body {
   margin: 0;
-  padding: 40px 20px;
+  padding: 0;
 }
 
-.app {
-  max-width: 600px;
-  margin: 0 auto;
-  position: relative;
-}
-
-main {
-  text-align: center;
-}
-
-h1 {
-  font-size: 1.8rem;
-  margin-bottom: 0.25rem;
-  color: var(--primary-color);
-}
-
-.subtitle {
-  color: var(--secondary-color);
-  margin-bottom: 2rem;
-  font-size: 0.9rem;
-}
-
-.status-section,
-.counter-section {
-  margin-bottom: 2rem;
-}
-
-.status-indicator {
-  margin-bottom: 1rem;
-  font-size: 0.9rem;
-}
-
+/* Common status indicator styles */
 .status-ok {
   color: var(--success-color);
 }
@@ -52,47 +21,6 @@ h1 {
 
 .loading {
   color: var(--secondary-color);
-}
-
-.counter-section p {
-  font-size: 1rem;
-  margin-bottom: 1rem;
-}
-
-.counter-section strong {
-  color: var(--primary-color);
-  font-size: 1.5rem;
-  font-weight: bold;
-}
-
-.hint {
-  margin-top: 3rem;
-  font-size: 0.85rem;
-  color: var(--secondary-color);
-}
-
-/* Remove excessive borders and boxes */
-.terminal-card {
-  border: none;
-  box-shadow: none;
-  padding: 0;
-}
-
-/* Theme toggle button positioning */
-.theme-toggle {
-  position: absolute;
-  top: -30px;
-  right: 0;
-  padding: 0.5rem;
-  min-width: auto;
-}
-
-/* Icon styles */
-.status-indicator span {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  justify-content: center;
 }
 
 /* Make Terminal CSS buttons work with flex icons */
@@ -173,4 +101,363 @@ h1 {
 .dark body {
   background-color: var(--background-color);
   color: var(--font-color);
+}
+
+/* Auth Pages */
+.auth-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background-color: var(--background-color);
+}
+
+.auth-form {
+  max-width: 400px;
+  width: 100%;
+  padding: 2rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--card-background);
+}
+
+.auth-form h1 {
+  text-align: center;
+  margin-bottom: 1.5rem;
+  color: var(--primary-color);
+}
+
+.auth-form form > div {
+  margin-bottom: 1rem;
+}
+
+.auth-form label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: bold;
+  color: var(--font-color);
+}
+
+.auth-form input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--form-border);
+  border-radius: 2px;
+  background: var(--form-background);
+  color: var(--form-color);
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.auth-form input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+}
+
+.auth-form .btn-block {
+  width: 100%;
+  margin-top: 1rem;
+}
+
+.auth-link {
+  text-align: center;
+  margin-top: 1rem;
+  font-size: 0.9rem;
+  color: var(--secondary-color);
+}
+
+.auth-link a {
+  color: var(--link-color);
+  text-decoration: none;
+}
+
+.auth-link a:hover {
+  text-decoration: underline;
+}
+
+.error-message {
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+  background: var(--error-color);
+  color: white;
+  border-radius: 2px;
+  font-size: 0.9rem;
+}
+
+/* Dashboard */
+.dashboard-container {
+  min-height: 100vh;
+  padding: 1rem;
+  background: var(--background-color);
+}
+
+.dashboard-content {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.dashboard-header {
+  padding: 1.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  margin-bottom: 1.5rem;
+  background: var(--card-background);
+}
+
+.dashboard-header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.dashboard-header h1 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.5rem;
+  color: var(--primary-color);
+}
+
+.dashboard-header p {
+  margin: 0;
+  color: var(--secondary-color);
+}
+
+.dashboard-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.dashboard-card {
+  padding: 1.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--card-background);
+}
+
+.dashboard-card h2 {
+  margin: 0 0 1rem 0;
+  font-size: 1.2rem;
+  color: var(--primary-color);
+}
+
+.profile-info p {
+  margin: 0.5rem 0;
+  color: var(--font-color);
+}
+
+.action-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* Home page auth navigation */
+.auth-nav {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.auth-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: var(--font-color);
+}
+
+.auth-links {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* Terminal.css button extensions */
+.btn-sm {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8rem;
+}
+
+.btn-danger {
+  background-color: var(--error-color);
+  color: white;
+  border-color: var(--error-color);
+}
+
+.btn-danger:hover {
+  background-color: var(--error-color);
+  opacity: 0.8;
+}
+
+.btn-block {
+  width: 100%;
+}
+
+/* Home Page */
+.home-container {
+  min-height: 100vh;
+  padding: 1rem;
+  background: var(--background-color);
+}
+
+.home-content {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.home-header {
+  padding: 1.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  margin-bottom: 1.5rem;
+  background: var(--card-background);
+}
+
+.home-header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.home-title h1 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.8rem;
+  color: var(--primary-color);
+}
+
+.home-title p {
+  margin: 0;
+  color: var(--secondary-color);
+  font-size: 0.9rem;
+}
+
+.home-actions {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.home-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.5rem;
+}
+
+.home-card {
+  padding: 1.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--card-background);
+}
+
+.home-card h2 {
+  margin: 0 0 1rem 0;
+  font-size: 1.2rem;
+  color: var(--primary-color);
+}
+
+.status-content,
+.counter-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.status-indicator {
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+.status-indicator span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.counter-display {
+  text-align: center;
+  font-size: 1.2rem;
+  margin: 0;
+  color: var(--font-color);
+}
+
+.counter-display strong {
+  color: var(--primary-color);
+  font-size: 1.8rem;
+  font-weight: bold;
+}
+
+.about-content p {
+  margin: 0 0 1rem 0;
+  color: var(--font-color);
+}
+
+.about-content ul {
+  margin: 0;
+  padding-left: 1.5rem;
+  color: var(--font-color);
+}
+
+.about-content li {
+  margin-bottom: 0.25rem;
+}
+
+/* Update auth info styles for home page */
+.home-actions .auth-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: var(--font-color);
+}
+
+.home-actions .auth-links {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .dashboard-header-content {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .dashboard-actions {
+    justify-content: center;
+  }
+  
+  .auth-nav {
+    position: static;
+    justify-content: center;
+    margin-bottom: 1rem;
+  }
+  
+  .home-header-content {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .home-actions {
+    justify-content: center;
+  }
+  
+  .home-grid {
+    grid-template-columns: 1fr;
+  }
 }

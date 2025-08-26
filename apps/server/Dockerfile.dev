@@ -15,12 +15,8 @@ RUN bun install
 # Copy server source code
 COPY apps/server ./apps/server
 
-# Set NODE_ENV for the build phase
-# This is critical for Bun to evaluate production conditions at build time
-# (e.g., cookie settings for cross-origin authentication)
-ENV NODE_ENV=production
-
-# Build the server
+# Build the server without NODE_ENV set
+# Bun will default to development mode when NODE_ENV is not set
 RUN cd apps/server && bun run build
 
 WORKDIR /app/apps/server

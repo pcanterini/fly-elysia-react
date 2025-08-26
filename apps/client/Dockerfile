@@ -1,20 +1,25 @@
 # Build stage
 FROM oven/bun:1 as builder
 
-WORKDIR /app
+# Install Python and build tools for optional native dependencies
+RUN apt-get update && apt-get install -y python3 python3-pip build-essential && rm -rf /var/lib/apt/lists/*
 
-# Copy root package.json
-COPY package.json ./
-COPY apps/client/package.json ./apps/client/
+WORKDIR /app/apps/client
 
-# Install dependencies
+# Copy only client package.json
+COPY apps/client/package.json ./
+
+# Install client dependencies (build tools needed for better-auth optional deps)
 RUN bun install
 
-# Copy client source and Caddyfile
-COPY apps/client ./apps/client
+# Copy client source
+COPY apps/client ./
+
+# Set environment variable for Docker development build
+ENV VITE_API_URL=http://localhost:3001
 
 # Build the app
-RUN cd apps/client && bun run build
+RUN bun run build
 
 # Production stage with Caddy
 FROM caddy:2-alpine

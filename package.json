@@ -7,7 +7,8 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "concurrently -p name -c \"bgBlue.bold,bgMagenta.bold\" \"bun:dev:client\" \"bun:dev:server\"",
+    "dev": "bun run db:start && concurrently -p name -c \"bgBlue.bold,bgMagenta.bold\" \"bun:dev:client\" \"bun:dev:server\"",
+    "db:start": "docker-compose up postgres -d",
     "dev:client": "cd apps/client && bun run dev",
     "dev:server": "cd apps/server && bun run dev",
     "build": "bun run build:client && bun run build:server",
@@ -20,16 +21,14 @@
     "typecheck:server": "cd apps/server && bun run typecheck",
     "docker:up": "docker-compose up --build",
     "docker:down": "docker-compose down",
+    "docker:prod": "docker-compose -f docker-compose.prod.yml up --build",
+    "docker:prod:down": "docker-compose -f docker-compose.prod.yml down",
+    "db:studio": "cd apps/server && bun run db:studio",
     "deploy": "./deploy.sh",
     "deploy:server": "./deploy-server.sh",
     "deploy:client": "./deploy-client.sh"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
-  },
-  "dependencies": {
-    "@tanstack/react-query": "^5.85.5",
-    "nuqs": "^2.5.1",
-    "terminal.css": "^0.7.5"
   }
 }
