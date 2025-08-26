@@ -9,11 +9,26 @@ if (!connectionString) {
 }
 
 const isProduction = process.env.NODE_ENV === 'production';
+const isNeon = connectionString.includes('neon.tech');
 
-// Simplified connection for debugging
+// Configure connection based on database type
 const connection = postgres(connectionString, {
-  max: 5,
+  // Connection pool settings
+  max: isNeon ? 1 : 5,  // Neon works better with fewer connections
+  idle_timeout: isNeon ? 10 : 20,
+  connect_timeout: 30,
+  
+  // SSL configuration
   ssl: connectionString.includes('sslmode=require') ? 'require' : false,
+  
+  // Neon-specific: prepare statements can cause issues
+  prepare: !isNeon,
+  
+  // Keep connection alive for Neon
+  keep_alive: isNeon ? 5 : null,
+  
+  // Don't transform column names as it can cause issues
+  transform: undefined,
 });
 
 // Create Drizzle database instance
@@ -39,17 +54,20 @@ export const closeDatabase = async (): Promise<void> => {
  */
 export const testDatabaseConnection = async (): Promise<boolean> => {
   try {
-    await connection`SELECT 1`;
-    return true;
+    const result = await connection`SELECT 1 as connected`;
+    return result[0]?.connected === 1;
   } catch (error) {
     console.error('Database connection test failed:', error);
     return false;
   }
 };
 
-// Handle graceful shutdown
-process.on('SIGINT', closeDatabase);
-process.on('SIGTERM', closeDatabase);
+// Only handle graceful shutdown for non-Neon databases
+// Neon handles connection lifecycle differently
+if (!isNeon) {
+  process.on('SIGINT', closeDatabase);
+  process.on('SIGTERM', closeDatabase);
+}
 
 export { schema };
 export * from './schema';
