@@ -4,8 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "bun --watch src/index.ts",
-    "build": "rm -rf ./dist && bun build src/index.ts --outdir ./dist --target bun",
-    "start": "bun dist/index.js",
+    "dev:worker": "bun --watch src/worker.ts",
+    "build": "rm -rf ./dist && bun build src/index.ts src/worker.ts --outdir ./dist --target bun",
+    "start": "RUN_WORKERS=false bun dist/index.js",
+    "worker": "bun dist/worker.js",
     "typecheck": "tsc --noEmit",
     "lint": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",

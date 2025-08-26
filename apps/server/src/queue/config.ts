@@ -3,6 +3,18 @@ import Redis from 'ioredis';
 
 // Create Redis connection for queue operations
 export const createRedisConnection = () => {
+  // Use REDIS_URL if available (production), otherwise fall back to host/port (development)
+  if (process.env.REDIS_URL) {
+    return new Redis(process.env.REDIS_URL, {
+      maxRetriesPerRequest: null,
+      enableOfflineQueue: true,
+      retryStrategy: (times: number) => {
+        const delay = Math.min(times * 50, 2000);
+        return delay;
+      }
+    });
+  }
+  
   return new Redis({
     host: process.env.REDIS_HOST || 'localhost',
     port: Number(process.env.REDIS_PORT) || 6379,
