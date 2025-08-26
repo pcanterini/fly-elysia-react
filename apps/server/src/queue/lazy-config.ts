@@ -19,14 +19,30 @@ const createRedisConnection = () => {
   console.log('[Redis] Connecting with URL:', url.replace(/:[^:@]*@/, ':****@'));
   
   try {
+    // Check if we're running on Fly.io
+    const isOnFly = !!process.env.FLY_APP_NAME;
+    const isUpstash = url.includes('upstash.io');
+    
+    if (isOnFly) {
+      console.log('[Redis] Running on Fly.io, FLY_APP_NAME:', process.env.FLY_APP_NAME);
+    }
+    if (isUpstash) {
+      console.log('[Redis] Upstash URL detected, using IPv6:', isOnFly);
+    }
+    
     const connection = new Redis(url, {
       maxRetriesPerRequest: null,
       enableOfflineQueue: true,
-      family: 4,
+      // Use IPv6 on Fly.io for Upstash, IPv4 elsewhere
+      family: (isOnFly && isUpstash) ? 6 : 4,
       connectTimeout: 10000,
       retryStrategy: (times: number) => {
         if (times > 10) {
           console.error('[Redis] Connection failed after 10 attempts');
+          // Keep retrying slowly in production
+          if (process.env.NODE_ENV === 'production') {
+            return 5000; // Retry every 5 seconds
+          }
           return null;
         }
         const delay = Math.min(times * 50, 2000);
