@@ -1,18 +1,26 @@
 # Build stage
 FROM oven/bun:1 as builder
 
-WORKDIR /app/apps/client
+WORKDIR /app
 
-# Copy only client package.json
-COPY apps/client/package.json ./
+# Copy root package.json and lock file
+COPY package.json bun.lock ./
 
-# Install client dependencies
+# Copy workspace package.json files
+COPY apps/client/package.json ./apps/client/
+COPY packages/shared/package.json ./packages/shared/
+
+# Copy shared package source
+COPY packages/shared ./packages/shared
+
+# Install all dependencies from root
 RUN bun install
 
 # Copy client source
-COPY apps/client ./
+COPY apps/client ./apps/client
 
 # Build the app
+WORKDIR /app/apps/client
 RUN bun run build
 
 # Production stage with Caddy

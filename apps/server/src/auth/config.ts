@@ -1,6 +1,5 @@
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
-import { multiSession } from 'better-auth/plugins';
 import { db } from '../db';
 
 const isProduction = process.env.NODE_ENV === 'production';
@@ -61,14 +60,8 @@ export const auth = betterAuth({
       httpOnly: true,
       secure: isProduction,
       sameSite: isProduction ? 'none' as const : 'lax' as const
-    },
-    cookiePrefix: 'fly-app'
+    }
   },
-  plugins: [
-    multiSession({
-      maximumSessions: 5 // Limit concurrent sessions per user
-    })
-  ],
   secret: process.env.BETTER_AUTH_SECRET,
   baseURL: process.env.BETTER_AUTH_URL || 'http://localhost:3001',
   trustedOrigins: [

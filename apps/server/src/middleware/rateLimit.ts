@@ -23,7 +23,7 @@ const defaultConfig: Required<RateLimitConfig> = {
   keyGenerator: (request: Request) => {
     // Use IP address from headers or fallback to a default
     const forwarded = request.headers.get('x-forwarded-for');
-    const ip = forwarded ? forwarded.split(',')[0].trim() : 'unknown';
+    const ip = forwarded ? forwarded.split(',')[0]?.trim() || 'unknown' : 'unknown';
     return ip;
   },
   skipSuccessfulRequests: false,
@@ -37,7 +37,7 @@ const store: RateLimitStore = {};
 setInterval(() => {
   const now = Date.now();
   for (const key in store) {
-    if (store[key].resetTime < now) {
+    if (store[key] && store[key].resetTime < now) {
       delete store[key];
     }
   }
@@ -57,11 +57,11 @@ export function createRateLimiter(config: RateLimitConfig = {}) {
           resetTime: now + options.windowMs,
         };
       } else {
-        store[key].count++;
+        store[key]!.count++;
       }
 
       // Check if limit exceeded
-      if (store[key].count > options.max) {
+      if (store[key] && store[key].count > options.max) {
         set.status = 429; // Too Many Requests
         set.headers['Retry-After'] = String(Math.ceil((store[key].resetTime - now) / 1000));
         set.headers['X-RateLimit-Limit'] = String(options.max);

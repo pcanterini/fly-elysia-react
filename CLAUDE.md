@@ -22,8 +22,17 @@ This is a full-stack TypeScript monorepo with a React frontend and Elysia (Bun) 
 /
 ├── apps/
 │   ├── client/         # React frontend (Vite)
+│   │   ├── src/
+│   │   │   ├── lib/    # API client and auth setup
+│   │   │   ├── pages/  # Page components
+│   │   │   └── contexts/ # React contexts
 │   └── server/         # Elysia backend (Bun)
-├── packages/           # Shared packages (currently empty)
+│       ├── src/
+│       │   ├── auth/   # Better-auth configuration
+│       │   ├── db/     # Database setup
+│       │   └── middleware/ # Security & rate limiting
+├── packages/
+│   └── shared/         # Shared types and constants
 └── *.toml             # Fly.io deployment configs
 ```
 
@@ -79,6 +88,8 @@ bun run deploy:server
 - Development API URL: `http://localhost:3001`
 - Production API URL: `https://bun-app-server.fly.dev`
 - The client automatically switches based on `import.meta.env.DEV`
+- Centralized API client in `apps/client/src/lib/api.ts`
+- Typed API methods using shared types from `@my-app/shared`
 
 ### React Query Configuration
 - Stale time: 5 minutes

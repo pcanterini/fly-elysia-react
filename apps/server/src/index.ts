@@ -3,7 +3,8 @@ import { cors } from '@elysiajs/cors'
 import { auth } from './auth/config'
 import { securityHeaders } from './middleware/security'
 import { apiRateLimit, authRateLimit } from './middleware/rateLimit'
-import { HealthResponse } from '@my-app/shared'
+import { testDatabaseConnection } from './db'
+import type { HealthResponse } from '@my-app/shared'
 
 const allowedOrigins = [
   'https://bun-app-client.fly.dev',
@@ -37,12 +38,14 @@ const app = new Elysia()
     })
   )
   // Health check endpoint
-  .get('/api/health', (): HealthResponse => {
+  .get('/api/health', async (): Promise<HealthResponse> => {
+    const dbHealthy = await testDatabaseConnection();
     return {
-      status: 'ok',
-      message: 'Server is running!',
+      status: dbHealthy ? 'ok' : 'degraded',
+      message: dbHealthy ? 'Server is running!' : 'Server running with database issues',
       timestamp: new Date().toISOString(),
-      environment: process.env.NODE_ENV
+      environment: process.env.NODE_ENV,
+      database: dbHealthy ? 'connected' : 'disconnected'
     };
   })
   // Example endpoint
@@ -53,8 +56,35 @@ const app = new Elysia()
   .group('/api/auth', (app) =>
     app
       .use(authRateLimit) // Apply auth-specific rate limiting
-      .all('*', async ({ request }) => {
-        return await auth.handler(request);
+      .all('*', async ({ request, set }) => {
+        try {
+          const response = await auth.handler(request);
+          return response;
+        } catch (error) {
+          console.error('Auth handler error:', error);
+          
+          // Check for specific database connection errors
+          if (error instanceof Error) {
+            if (error.message.includes('CONNECTION_ENDED') || 
+                error.message.includes('CONNECTION_DESTROYED') ||
+                error.message.includes('ECONNREFUSED')) {
+              set.status = 503;
+              return {
+                error: 'Database temporarily unavailable',
+                message: 'Please try again in a moment',
+                code: 'SERVICE_UNAVAILABLE'
+              };
+            }
+          }
+          
+          // Default error response
+          set.status = 500;
+          return {
+            error: 'Internal server error',
+            message: 'An unexpected error occurred',
+            code: 'INTERNAL_ERROR'
+          };
+        }
       })
   )
   .listen({

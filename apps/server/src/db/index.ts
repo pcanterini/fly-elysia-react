@@ -10,41 +10,13 @@ if (!connectionString) {
 
 const isProduction = process.env.NODE_ENV === 'production';
 
-// Configure postgres connection with production-ready settings
+// Simplified connection for debugging
 const connection = postgres(connectionString, {
-  // Connection pool settings
-  max: isProduction ? 20 : 5,           // Max connections in pool
-  idle_timeout: 20,                      // Close idle connections after 20 seconds
-  connect_timeout: 10,                   // Connection timeout in seconds
-  
-  // SSL configuration for production
-  ssl: isProduction ? 'require' : false,
-  
-  // Query and connection settings
-  prepare: true,                         // Use prepared statements for performance
-  transform: {
-    // Transform column names to camelCase
-    column: {
-      to: postgres.toCamel,
-      from: postgres.fromCamel,
-    },
-  },
-  
-  // Development debugging
-  debug: !isProduction ? (connection, query, params) => {
-    console.log('[DB Query]:', query);
-    if (params && params.length) {
-      console.log('[DB Params]:', params);
-    }
-  } : undefined,
-  
-  // Error handling
-  onnotice: isProduction 
-    ? undefined 
-    : (notice) => console.log('[DB Notice]:', notice),
+  max: 5,
+  ssl: connectionString.includes('sslmode=require') ? 'require' : false,
 });
 
-// Create Drizzle database instance with enhanced configuration
+// Create Drizzle database instance
 export const db = drizzle(connection, { 
   schema,
   logger: !isProduction // Enable query logging in development

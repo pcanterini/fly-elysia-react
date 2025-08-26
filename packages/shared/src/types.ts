@@ -53,10 +53,11 @@ export interface AuthResponse {
 
 // Health check
 export interface HealthResponse {
-  status: 'ok' | 'error';
+  status: 'ok' | 'error' | 'degraded';
   message: string;
   timestamp: string;
   environment?: string;
+  database?: 'connected' | 'disconnected';
 }
 
 // Form validation
