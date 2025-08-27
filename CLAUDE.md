@@ -46,10 +46,22 @@ bun install
 # Run both client and server concurrently
 bun run dev
 
+# Clean start (kills orphaned processes first)
+bun run dev:clean
+
+# Check for running processes/ports
+bun run dev:check
+
 # Run individual apps
 bun run dev:client    # Frontend on http://localhost:5173
 bun run dev:server    # Backend on http://localhost:3001
 ```
+
+#### Redis Configuration
+Local development requires Redis with password authentication:
+- Redis URL: `redis://:dev-redis-password-change-in-production@localhost:6379`
+- This is configured in `apps/server/.env`
+- Docker Compose automatically starts Redis with this password
 
 ### Build & Production
 ```bash
@@ -85,11 +97,24 @@ bun run deploy:server
 ## Key Implementation Details
 
 ### API Communication
-- Development API URL: `http://localhost:3001`
-- Production API URL: `https://bun-app-server.fly.dev`
-- The client automatically switches based on `import.meta.env.DEV`
+- **Development**: API URL is `http://localhost:3001`
+- **Production**: Client makes direct CORS requests to `https://bun-app-server.fly.dev`
+- **No proxy**: The client does NOT proxy API requests through Caddy
+- **Runtime detection**: The client detects the environment at runtime (`apps/client/src/lib/api.ts`)
+  - If hostname includes 'fly.dev', uses production server URL
+  - Otherwise defaults to localhost for development
 - Centralized API client in `apps/client/src/lib/api.ts`
 - Typed API methods using shared types from `@my-app/shared`
+
+### Authentication Architecture
+- **Library**: better-auth with PostgreSQL adapter
+- **Session storage**: Uses localStorage on client for cross-origin compatibility
+- **Cookie configuration** (Production):
+  - Domain: `.fly.dev` (allows cross-subdomain access)
+  - Secure: `true` (HTTPS only)
+  - SameSite: `none` (required for cross-origin)
+  - HttpOnly: `true` (prevents XSS)
+- **Direct authentication**: Client calls server auth endpoints directly (no proxy)
 
 ### React Query Configuration
 - Stale time: 5 minutes
@@ -100,8 +125,26 @@ bun run deploy:server
 The server allows requests from:
 - Production: `https://bun-app-client.fly.dev`
 - Development: Various localhost ports (3000, 4173, 5173, 5174)
+- Credentials: `include` for cookie-based authentication
 
 ### Fly.io Apps
 - Client app: `bun-app-client` (512MB RAM, port 80)
 - Server app: `bun-app-server` (1GB RAM, port 3001)
 - Both configured with auto start/stop for cost optimization
+
+## Deployment Requirements
+
+### Required Fly Secrets
+Set these secrets for the server app using `fly secrets set --app bun-app-server`:
+- `BETTER_AUTH_SECRET`: Random secret key for auth (generate with `openssl rand -base64 32`)
+- `BETTER_AUTH_URL`: Must be set to `https://bun-app-server.fly.dev`
+- `DATABASE_URL`: PostgreSQL connection string
+- `REDIS_URL`: Redis/Upstash connection string for job queues
+
+### Security Considerations
+- **Cross-origin authentication**: Requires proper CORS and cookie configuration
+- **Cookie security**: In production, cookies must have:
+  - `Secure` flag for HTTPS-only transmission
+  - `SameSite=none` for cross-origin requests
+  - Proper domain (`.fly.dev`) for cross-subdomain access
+- **Direct API calls**: Client bypasses proxy for auth to avoid cookie domain issues

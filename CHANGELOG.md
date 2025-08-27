@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - 2025-08-27
+
+### Fixed
+- **Authentication Cookie Issues in Production**
+  - Fixed cookies being set with localhost domain in production
+  - Client now makes direct CORS requests to server (no proxy)
+  - Added runtime API URL detection based on hostname
+  - Proper cookie configuration with `.fly.dev` domain for production
+  - SameSite=none and Secure flags properly set for cross-origin auth
+  - Removed Caddy reverse proxy for `/api/*` routes to avoid cookie domain conflicts
+
+### Changed
+- **Client API Configuration**
+  - Added runtime environment detection in `apps/client/src/lib/api.ts`
+  - Client automatically uses correct server URL based on hostname
+  - Removed dependency on build-time VITE_API_URL environment variable
+
+- **Documentation Updates**
+  - Added Authentication Architecture section to CLAUDE.md
+  - Added Deployment Requirements section with required Fly secrets
+  - Updated API Communication section to reflect direct CORS approach
+  - Added Security Considerations for cross-origin authentication
+
+### Security
+- Enhanced cookie security configuration for production
+- Ensured proper domain, secure, and SameSite attributes for auth cookies
+- Direct API calls prevent cookie manipulation through proxy
+
 ## [Unreleased] - 2024-01-26
 
 ### Added

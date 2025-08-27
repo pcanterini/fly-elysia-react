@@ -13,26 +13,6 @@ if (!process.env.DATABASE_URL) {
   throw new Error('DATABASE_URL environment variable is required');
 }
 
-// Determine the cookie domain based on the environment
-const getCookieDomain = () => {
-  if (!isProduction) return undefined; // Let browser handle it in dev
-  
-  // In production, extract domain from BETTER_AUTH_URL
-  const authUrl = process.env.BETTER_AUTH_URL || '';
-  if (authUrl.includes('fly.dev')) {
-    return '.fly.dev'; // Allow cookies across fly.dev subdomains
-  }
-  // Default: no domain restriction (same-origin only)
-  return undefined;
-};
-
-const cookieDomain = getCookieDomain();
-
-// Log configuration for debugging
-console.log('[Auth Config] Environment:', isProduction ? 'production' : 'development');
-console.log('[Auth Config] BETTER_AUTH_URL:', process.env.BETTER_AUTH_URL);
-console.log('[Auth Config] Cookie domain:', cookieDomain);
-console.log('[Auth Config] Secure cookies:', isProduction);
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
