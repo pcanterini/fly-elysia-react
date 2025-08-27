@@ -1,19 +1,29 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../lib/api';
+import { useAuth } from '../hooks/useAuth';
 import type { Job, JobStatus } from '@my-app/shared';
 
 export function JobsPage() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const [selectedTab, setSelectedTab] = useState<'jobs' | 'stats'>('jobs');
 
   // Fetch jobs with polling
   const { data: jobsData, isLoading: jobsLoading } = useQuery({
-    queryKey: ['jobs'],
+    queryKey: ['jobs', user?.id],
     queryFn: () => apiClient.jobs.list(),
     refetchInterval: 2000, // Poll every 2 seconds
+    enabled: !!user, // Only fetch when user is available
   });
+  
+  // Extra security: Filter jobs client-side to ensure only user's jobs are shown
+  // This is a defense-in-depth measure in addition to server-side filtering
+  const filteredJobs = useMemo(() => {
+    if (!jobsData?.jobs || !user) return [];
+    return jobsData.jobs.filter(job => job.userId === user.id);
+  }, [jobsData?.jobs, user]);
 
   // Fetch queue statistics
   const { data: statsData, isLoading: statsLoading } = useQuery({
@@ -142,7 +152,7 @@ export function JobsPage() {
               <div className="terminal-alert">Loading jobs...</div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                {jobsData?.jobs?.map((job) => (
+                {filteredJobs.map((job) => (
                   <div key={job.id} className="terminal-card">
                       <header style={{ padding: '0.5rem 1rem', borderBottom: '1px solid var(--secondary)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -239,7 +249,7 @@ export function JobsPage() {
                     </div>
                 ))}
                 
-                {jobsData?.jobs?.length === 0 && (
+                {filteredJobs.length === 0 && (
                   <div className="terminal-alert terminal-alert-primary" style={{ textAlign: 'center' }}>
                     No jobs yet. Create one to get started!
                   </div>

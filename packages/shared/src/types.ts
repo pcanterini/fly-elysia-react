@@ -90,13 +90,26 @@ export interface Job {
   finishedOn?: string;
   attempts: number;
   maxAttempts: number;
+  userId: string; // User who created the job
+  metadata?: {
+    ipAddress?: string;
+    userAgent?: string;
+    createdBy?: string;
+  };
 }
 
 export interface CreateJobRequest {
   name: string;
   data?: Record<string, any>;
-  delay?: number;
-  priority?: number;
+  delay?: number; // Max 30 days
+  priority?: number; // 0-100
+}
+
+export interface JobFilters {
+  userId?: string;
+  states?: JobStatus[];
+  page?: number;
+  pageSize?: number;
 }
 
 export interface JobListResponse {

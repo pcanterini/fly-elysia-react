@@ -20,15 +20,22 @@ const createRedisConnection = () => {
   }
   
   try {
-    const url = process.env.REDIS_URL;
+    const redisUrl = process.env.REDIS_URL;
     const isOnFly = !!process.env.FLY_APP_NAME;
-    const isUpstash = url.includes('upstash.io');
+    const isUpstash = redisUrl.includes('upstash.io');
     
     if (isOnFly) {
       console.log('[Worker] Running on Fly.io, FLY_APP_NAME:', process.env.FLY_APP_NAME);
     }
     
-    return new Redis(url, {
+    // Parse URL to extract password if present
+    const url = new URL(redisUrl);
+    
+    return new Redis({
+      host: url.hostname,
+      port: parseInt(url.port || '6379'),
+      password: url.password ? decodeURIComponent(url.password) : undefined,
+      username: url.username || undefined,
       maxRetriesPerRequest: null,
       enableOfflineQueue: true,
       // Use IPv6 on Fly.io for Upstash
@@ -44,7 +51,8 @@ const createRedisConnection = () => {
         }
         return Math.min(times * 50, 2000);
       },
-      lazyConnect: true
+      lazyConnect: false,
+      enableReadyCheck: true
     });
   } catch (error) {
     console.error('[Worker] Failed to create Redis connection:', error);
@@ -99,11 +107,8 @@ export const createExampleWorker = () => {
       connection: connection,
       concurrency: 5, // Process up to 5 jobs concurrently
       autorun: true, // Start processing immediately
-      // Worker settings for better performance and monitoring
-      settings: {
-        stalledInterval: 30000, // Check for stalled jobs every 30s
-        maxStalledCount: 3, // Max number of times a job can be stalled
-      },
+      stalledInterval: 30000, // Check for stalled jobs every 30s
+      maxStalledCount: 3, // Max number of times a job can be stalled
     }
   );
 

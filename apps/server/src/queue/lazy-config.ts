@@ -87,15 +87,19 @@ export const initializeQueues = () => {
     const url = new URL(redisUrl);
     
     // Create connection options for BullMQ
+    // Note: URL password needs to be decoded
     const connectionOpts = {
       host: url.hostname,
       port: parseInt(url.port || '6379'),
-      password: url.password || undefined,
+      password: url.password ? decodeURIComponent(url.password) : undefined,
+      username: url.username || undefined,
       maxRetriesPerRequest: null,
       enableOfflineQueue: true,
       family: redisConfig.family,
       connectTimeout: redisConfig.connectTimeout,
       retryStrategy: redisConfig.retryStrategy,
+      enableReadyCheck: true,
+      lazyConnect: false,
     };
     
     exampleQueue = new Queue(QUEUE_NAMES.EXAMPLE, {

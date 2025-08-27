@@ -2,7 +2,8 @@ import { Elysia } from 'elysia'
 import { cors } from '@elysiajs/cors'
 import { auth } from './auth/config'
 import { securityHeaders } from './middleware/security'
-import { apiRateLimit, authRateLimit } from './middleware/rateLimit'
+import { apiRateLimit, authRateLimit, createRateLimiter } from './middleware/rateLimit'
+import { requireAuth } from './middleware/auth'
 import { testDatabaseConnection } from './db'
 import { queueService } from './queue/service'
 import { startExampleWorker, stopExampleWorker } from './queue/workers/example.worker'
@@ -90,14 +91,27 @@ const app = new Elysia()
         }
       })
   )
-  // Job queue endpoints
+  // Job queue endpoints with authentication
   .group('/api/jobs', (app) =>
     app
-      // Get queue statistics
-      .get('/stats', async ({ set }) => {
-        console.log('[API /stats] Checking queue availability...');
+      // Apply authentication middleware to all job routes
+      .use(requireAuth)
+      // Apply stricter rate limiting for job creation
+      .use(createRateLimiter({
+        windowMs: 60 * 1000, // 1 minute
+        max: 10, // 10 job operations per minute per user
+        message: 'Too many job operations, please try again later',
+        keyGenerator: (request: Request) => {
+          // Rate limit per authenticated user
+          const userId = (request as any).userId || 'anonymous';
+          return `jobs:${userId}`;
+        }
+      }))
+      // Get queue statistics for current user
+      .get('/stats', async (context) => {
+        const { set, userId } = context as any;
+        
         if (!queueService.isAvailable()) {
-          console.log('[API /stats] Queue is NOT available');
           set.status = 503;
           return {
             error: 'Service Unavailable',
@@ -106,32 +120,92 @@ const app = new Elysia()
           };
         }
         try {
-          const stats = await queueService.getQueueStats();
+          const stats = await queueService.getUserQueueStats(userId);
           return stats;
         } catch (error) {
           console.error('Error fetching queue stats:', error);
           throw error;
         }
       })
-      // List jobs with pagination
-      .get('/', async ({ query }) => {
+      // List jobs for current user with pagination
+      .get('/', async (context) => {
+        const { query, userId, set } = context as any;
+        
         try {
+          console.log('[Jobs GET /] Using userId from context:', userId);
+          
           const page = Number(query.page) || 1;
-          const pageSize = Number(query.pageSize) || 20;
+          const pageSize = Math.min(Number(query.pageSize) || 20, 100); // Max 100 per page
           const states = query.states ? query.states.split(',') : undefined;
           
-          const response = await queueService.getJobs(page, pageSize, states as any);
+          const response = await queueService.getUserJobs(userId, page, pageSize, states as any);
+          console.log(`[Jobs GET /] Response: ${response.jobs.length} jobs returned`);
           return response;
         } catch (error) {
           console.error('Error fetching jobs:', error);
           throw error;
         }
       })
-      // Create a new job
-      .post('/', async ({ body, set }) => {
+      // Create a new job with validation and rate limiting
+      .post('/', async (context) => {
+        const { body, set, request, userId } = context as any;
+        
         try {
+          console.log('[Jobs POST /] Creating job with userId:', userId);
           const jobData = body as CreateJobRequest;
-          const job = await queueService.createJob(jobData);
+          
+          // Validate job data
+          if (!jobData.name || typeof jobData.name !== 'string') {
+            set.status = 400;
+            return {
+              error: 'Invalid job name',
+              message: 'Job name is required and must be a string'
+            };
+          }
+          
+          // Validate job data size (max 256KB)
+          const dataSize = JSON.stringify(jobData.data || {}).length;
+          if (dataSize > 256 * 1024) {
+            set.status = 400;
+            return {
+              error: 'Job data too large',
+              message: 'Job data must be less than 256KB'
+            };
+          }
+          
+          // Validate delay (max 30 days)
+          if (jobData.delay && jobData.delay > 30 * 24 * 60 * 60 * 1000) {
+            set.status = 400;
+            return {
+              error: 'Invalid delay',
+              message: 'Job delay cannot exceed 30 days'
+            };
+          }
+          
+          // Validate priority (0-100)
+          if (jobData.priority !== undefined && (jobData.priority < 0 || jobData.priority > 100)) {
+            set.status = 400;
+            return {
+              error: 'Invalid priority',
+              message: 'Job priority must be between 0 and 100'
+            };
+          }
+          
+          // Extract metadata
+          const metadata = {
+            ipAddress: request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 
+                       request.headers.get('x-real-ip') || 
+                       'unknown',
+            userAgent: request.headers.get('user-agent') || 'unknown',
+            createdBy: userId
+          };
+          
+          const job = await queueService.createJob({
+            ...jobData,
+            userId,
+            metadata
+          });
+          
           set.status = 201;
           return { job };
         } catch (error) {
@@ -143,10 +217,12 @@ const app = new Elysia()
           };
         }
       })
-      // Get a single job by ID
-      .get('/:id', async ({ params, set }) => {
+      // Get a single job by ID (only if owned by user)
+      .get('/:id', async (context) => {
+        const { params, set, userId } = context as any;
         try {
           const job = await queueService.getJob(params.id);
+          
           if (!job) {
             set.status = 404;
             return {
@@ -154,16 +230,47 @@ const app = new Elysia()
               message: `Job with ID ${params.id} does not exist`
             };
           }
+          
+          // Check ownership
+          if (job.userId !== userId) {
+            set.status = 403;
+            return {
+              error: 'Forbidden',
+              message: 'You do not have permission to view this job'
+            };
+          }
+          
           return { job };
         } catch (error) {
           console.error('Error fetching job:', error);
           throw error;
         }
       })
-      // Perform action on a job (retry, remove, promote)
-      .post('/:id/action', async ({ params, body, set }) => {
+      // Perform action on a job (only if owned by user)
+      .post('/:id/action', async (context) => {
+        const { params, body, set, userId } = context as any;
         try {
           const action = body as JobAction;
+          
+          // First check if job exists and user owns it
+          const job = await queueService.getJob(params.id);
+          
+          if (!job) {
+            set.status = 404;
+            return {
+              success: false,
+              message: 'Job not found'
+            };
+          }
+          
+          if (job.userId !== userId) {
+            set.status = 403;
+            return {
+              success: false,
+              message: 'You do not have permission to modify this job'
+            };
+          }
+          
           const response = await queueService.performJobAction(params.id, action.action);
           
           if (!response.success) {

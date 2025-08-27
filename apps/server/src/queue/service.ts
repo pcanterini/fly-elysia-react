@@ -1,4 +1,4 @@
-import { Job as BullJob, JobState } from 'bullmq';
+import { Job as BullJob, type JobState } from 'bullmq';
 import { getQueue, getQueueEvents } from './lazy-config';
 import type { 
   Job, 
@@ -22,17 +22,24 @@ export class QueueService {
   }
 
   /**
-   * Create a new job
+   * Create a new job with user ownership
    */
-  async createJob(data: CreateJobRequest): Promise<Job> {
+  async createJob(data: CreateJobRequest & { userId: string; metadata?: any }): Promise<Job> {
     const queue = getQueue();
     if (!queue) {
       throw new Error('Queue service is not available. Redis connection failed.');
     }
     
+    // Store userId and metadata in job data
+    const jobData = {
+      ...data.data,
+      __userId: data.userId,
+      __metadata: data.metadata,
+    };
+    
     const bullJob = await queue.add(
       data.name || 'example-job',
-      data.data || {},
+      jobData,
       {
         delay: data.delay,
         priority: data.priority,
@@ -55,9 +62,58 @@ export class QueueService {
   }
 
   /**
-   * Get list of jobs with pagination
+   * Get list of jobs for a specific user with pagination
    */
-  async getJobs(
+  async getUserJobs(
+    userId: string,
+    page = 1,
+    pageSize = 20,
+    states?: JobState[]
+  ): Promise<JobListResponse> {
+    const queue = getQueue();
+    if (!queue) {
+      return {
+        jobs: [],
+        total: 0,
+        page,
+        pageSize,
+      };
+    }
+
+    const statesToFetch = states || ['waiting', 'active', 'completed', 'failed', 'delayed', 'paused'];
+    
+    // Fetch a larger batch to account for filtering, but not all jobs
+    const maxJobsToFetch = pageSize * 10; // Reasonable buffer for filtering
+    const jobPromises = statesToFetch.map(state => 
+      queue.getJobs(state as any, 0, maxJobsToFetch)
+    );
+    
+    const jobArrays = await Promise.all(jobPromises);
+    const allJobs = jobArrays.flat();
+    
+    // Filter jobs by userId IMMEDIATELY after fetching
+    const userJobs = allJobs
+      .filter(job => job.data?.__userId === userId)
+      .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    
+    console.log(`[QueueService] getUserJobs - userId: ${userId}, filtered jobs: ${userJobs.length}`);
+    
+    // Paginate filtered results
+    const start = (page - 1) * pageSize;
+    const paginatedJobs = userJobs.slice(start, start + pageSize);
+    
+    return {
+      jobs: paginatedJobs.map(job => this.formatJob(job)),
+      total: userJobs.length,
+      page,
+      pageSize,
+    };
+  }
+
+  /**
+   * Get list of all jobs with pagination (internal use)
+   */
+  private async getJobs(
     page = 1,
     pageSize = 20,
     states?: JobState[]
@@ -103,7 +159,52 @@ export class QueueService {
   }
 
   /**
-   * Get queue statistics
+   * Get queue statistics for a specific user
+   */
+  async getUserQueueStats(userId: string): Promise<QueueStats> {
+    const queue = getQueue();
+    if (!queue) {
+      return {
+        waiting: 0,
+        active: 0,
+        completed: 0,
+        failed: 0,
+        delayed: 0,
+        paused: 0,
+        total: 0,
+      };
+    }
+    
+    // Get all jobs and filter by user
+    const states = ['waiting', 'active', 'completed', 'failed', 'delayed', 'paused'] as JobState[];
+    const allJobs = await Promise.all(
+      states.map(state => queue.getJobs(state as any, 0, 1000))
+    );
+    
+    const userJobCounts = {
+      waiting: 0,
+      active: 0,
+      completed: 0,
+      failed: 0,
+      delayed: 0,
+      paused: 0,
+    };
+    
+    allJobs.forEach((jobs, index) => {
+      const state = states[index] as keyof typeof userJobCounts;
+      userJobCounts[state] = jobs.filter(job => 
+        job.data?.__userId === userId
+      ).length;
+    });
+    
+    return {
+      ...userJobCounts,
+      total: Object.values(userJobCounts).reduce((sum, count) => sum + count, 0),
+    };
+  }
+
+  /**
+   * Get overall queue statistics (admin use)
    */
   async getQueueStats(): Promise<QueueStats> {
     const queue = getQueue();
@@ -259,12 +360,15 @@ export class QueueService {
                   bullJob.processedOn ? 'active' :
                   bullJob.delay ? 'delayed' : 'waiting';
 
+    // Extract userId and metadata from job data
+    const { __userId, __metadata, ...cleanData } = bullJob.data || {};
+
     return {
       id: bullJob.id || '',
       name: bullJob.name,
       status: state as JobStatus,
       progress: typeof bullJob.progress === 'number' ? bullJob.progress : 0,
-      data: bullJob.data || {},
+      data: cleanData,
       result: bullJob.returnvalue,
       error: bullJob.failedReason,
       createdAt: new Date(bullJob.timestamp || Date.now()).toISOString(),
@@ -273,6 +377,8 @@ export class QueueService {
       finishedOn: bullJob.finishedOn ? new Date(bullJob.finishedOn).toISOString() : undefined,
       attempts: bullJob.attemptsMade,
       maxAttempts: bullJob.opts.attempts || 3,
+      userId: __userId || 'system',
+      metadata: __metadata,
     };
   }
 }
