@@ -26,6 +26,8 @@
     "test:e2e:local": "playwright test --config=playwright.config.local.ts",
     "docker:up": "docker-compose up --build",
     "docker:down": "docker-compose down",
+    "docker:local": "docker-compose -f docker-compose.local.yml up --build",
+    "docker:local:down": "docker-compose -f docker-compose.local.yml down",
     "docker:prod": "docker-compose -f docker-compose.prod.yml up --build",
     "docker:prod:down": "docker-compose -f docker-compose.prod.yml down",
     "db:studio": "cd apps/server && bun run db:studio",

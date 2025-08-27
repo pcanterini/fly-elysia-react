@@ -1,5 +1,4 @@
 import { Queue, QueueEvents } from 'bullmq';
-import Redis from 'ioredis';
 
 // Queue names as constants for type safety
 export const QUEUE_NAMES = {
@@ -8,8 +7,8 @@ export const QUEUE_NAMES = {
   REPORT: 'report-jobs', // Future: report generation
 } as const;
 
-// Create Redis connection for queue operations (only when called)
-const createRedisConnection = () => {
+// Get Redis connection configuration
+const getRedisConfig = () => {
   // Also check for local Redis configuration
   const redisUrl = process.env.REDIS_URL || 
     (process.env.REDIS_HOST && process.env.REDIS_PORT ? 
@@ -20,55 +19,45 @@ const createRedisConnection = () => {
     return null;
   }
   
-  const url = redisUrl;
-  console.log('[Redis] Connecting with URL:', url.replace(/:[^:@]*@/, ':****@'));
+  console.log('[Redis] Using URL:', redisUrl.replace(/:[^:@]*@/, ':****@'));
   
-  try {
-    // Check if we're running on Fly.io
-    const isOnFly = !!process.env.FLY_APP_NAME;
-    const isUpstash = url.includes('upstash.io');
-    
-    if (isOnFly) {
-      console.log('[Redis] Running on Fly.io, FLY_APP_NAME:', process.env.FLY_APP_NAME);
-    }
-    if (isUpstash) {
-      console.log('[Redis] Upstash URL detected, using IPv6:', isOnFly);
-    }
-    
-    const connection = new Redis(url, {
-      maxRetriesPerRequest: null,
-      enableOfflineQueue: true,
-      // Use IPv6 on Fly.io for Upstash, IPv4 elsewhere
-      family: (isOnFly && isUpstash) ? 6 : 4,
-      connectTimeout: 10000,
-      retryStrategy: (times: number) => {
-        if (times > 10) {
-          console.error('[Redis] Connection failed after 10 attempts');
-          // Keep retrying slowly in production
-          if (process.env.NODE_ENV === 'production') {
-            return 5000; // Retry every 5 seconds
-          }
-          return null;
-        }
-        const delay = Math.min(times * 50, 2000);
-        return delay;
-      },
-      lazyConnect: false  // Changed to false to connect immediately
-    });
-    
-    connection.on('error', (err) => {
-      console.error('[Redis] Connection error:', err.message);
-    });
-    
-    connection.on('connect', () => {
-      console.log('[Redis] Connected successfully');
-    });
-    
-    return connection;
-  } catch (error) {
-    console.error('[Redis] Failed to create connection:', error);
-    return null;
+  // Check if we're running on Fly.io
+  const isOnFly = !!process.env.FLY_APP_NAME;
+  const isUpstash = redisUrl.includes('upstash.io');
+  
+  if (isOnFly) {
+    console.log('[Redis] Running on Fly.io, FLY_APP_NAME:', process.env.FLY_APP_NAME);
   }
+  if (isUpstash) {
+    console.log('[Redis] Upstash URL detected, using IPv6:', isOnFly);
+  }
+  
+  // Return configuration object for BullMQ
+  return {
+    maxRetriesPerRequest: null,
+    enableOfflineQueue: true,
+    // Use IPv6 on Fly.io for Upstash, IPv4 elsewhere
+    family: (isOnFly && isUpstash) ? 6 : 4,
+    connectTimeout: 10000,
+    connection: {
+      host: undefined,
+      port: undefined,
+      password: undefined,
+      url: redisUrl,
+    },
+    retryStrategy: (times: number) => {
+      if (times > 10) {
+        console.error('[Redis] Connection failed after 10 attempts');
+        // Keep retrying slowly in production
+        if (process.env.NODE_ENV === 'production') {
+          return 5000; // Retry every 5 seconds
+        }
+        return null;
+      }
+      const delay = Math.min(times * 50, 2000);
+      return delay;
+    },
+  };
 };
 
 // Lazy queue initialization
@@ -82,27 +71,35 @@ export const initializeQueues = () => {
     return { queue: exampleQueue, events: exampleQueueEvents };
   }
   
-  // Check for any Redis configuration
-  const redisUrl = process.env.REDIS_URL || 
-    (process.env.REDIS_HOST && process.env.REDIS_PORT ? 
-      `redis://${process.env.REDIS_HOST}:${process.env.REDIS_PORT}` : null);
+  const redisConfig = getRedisConfig();
   
-  if (!redisUrl) {
-    console.log('[Queue] No Redis configuration found (REDIS_URL or REDIS_HOST/PORT), queues disabled');
+  if (!redisConfig) {
+    console.log('[Queue] No Redis configuration found, queues disabled');
     initializationFailed = true;
     return { queue: null, events: null };
   }
   
   try {
     console.log('[Queue] Initializing queues...');
-    const connection = createRedisConnection();
     
-    if (!connection) {
-      throw new Error('Failed to create Redis connection');
-    }
+    // Parse Redis URL to get connection details
+    const redisUrl = redisConfig.connection.url;
+    const url = new URL(redisUrl);
+    
+    // Create connection options for BullMQ
+    const connectionOpts = {
+      host: url.hostname,
+      port: parseInt(url.port || '6379'),
+      password: url.password || undefined,
+      maxRetriesPerRequest: null,
+      enableOfflineQueue: true,
+      family: redisConfig.family,
+      connectTimeout: redisConfig.connectTimeout,
+      retryStrategy: redisConfig.retryStrategy,
+    };
     
     exampleQueue = new Queue(QUEUE_NAMES.EXAMPLE, {
-      connection: connection as Redis,
+      connection: connectionOpts,
       defaultJobOptions: {
         attempts: 3,
         backoff: {
@@ -119,14 +116,17 @@ export const initializeQueues = () => {
       },
     });
     
-    // Create a second connection for queue events
-    const eventsConnection = createRedisConnection();
-    if (!eventsConnection) {
-      throw new Error('Failed to create Redis connection for events');
-    }
-    
     exampleQueueEvents = new QueueEvents(QUEUE_NAMES.EXAMPLE, {
-      connection: eventsConnection as Redis,
+      connection: { ...connectionOpts }, // Create a separate connection for events
+    });
+    
+    // Add event listeners
+    exampleQueue.on('error', (error) => {
+      console.error('[Queue] Error:', error);
+    });
+    
+    exampleQueueEvents.on('error', (error) => {
+      console.error('[QueueEvents] Error:', error);
     });
     
     initialized = true;
@@ -140,12 +140,10 @@ export const initializeQueues = () => {
 };
 
 export const getQueue = () => {
-  console.log('[getQueue] State before - initialized:', initialized, 'failed:', initializationFailed, 'queue:', !!exampleQueue);
   if (!initialized && !initializationFailed) {
     console.log('[getQueue] Calling initializeQueues...');
     initializeQueues();
   }
-  console.log('[getQueue] State after - initialized:', initialized, 'failed:', initializationFailed, 'queue:', !!exampleQueue);
   return exampleQueue;
 };
 
