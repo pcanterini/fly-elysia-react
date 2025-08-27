@@ -22,11 +22,14 @@ RUN cd /app && bun install
 # Copy client source
 COPY apps/client ./
 
-# Set environment variable for Docker development build
-ENV VITE_API_URL=http://localhost:3001
+# Set build-time environment variable for production
+# ARG is needed for build-time variables with Vite
+ARG VITE_API_URL=https://bun-app-server.fly.dev
+ENV VITE_API_URL=${VITE_API_URL}
 
-# Build the app
-RUN bun run build
+# Build the app with the correct API URL
+RUN echo "Building with VITE_API_URL=${VITE_API_URL}" && \
+    VITE_API_URL=${VITE_API_URL} bun run build
 
 # Production stage with Caddy
 FROM caddy:2-alpine
@@ -34,8 +37,8 @@ FROM caddy:2-alpine
 # Copy built assets
 COPY --from=builder /app/apps/client/dist /usr/share/caddy
 
-# Copy Caddyfile from builder stage
-COPY --from=builder /app/apps/client/Caddyfile /etc/caddy/Caddyfile
+# Copy production Caddyfile from builder stage
+COPY --from=builder /app/apps/client/Caddyfile.prod /etc/caddy/Caddyfile
 
 EXPOSE 80
 

@@ -13,6 +13,27 @@ if (!process.env.DATABASE_URL) {
   throw new Error('DATABASE_URL environment variable is required');
 }
 
+// Determine the cookie domain based on the environment
+const getCookieDomain = () => {
+  if (!isProduction) return undefined; // Let browser handle it in dev
+  
+  // In production, extract domain from BETTER_AUTH_URL
+  const authUrl = process.env.BETTER_AUTH_URL || '';
+  if (authUrl.includes('fly.dev')) {
+    return '.fly.dev'; // Allow cookies across fly.dev subdomains
+  }
+  // Default: no domain restriction (same-origin only)
+  return undefined;
+};
+
+const cookieDomain = getCookieDomain();
+
+// Log configuration for debugging
+console.log('[Auth Config] Environment:', isProduction ? 'production' : 'development');
+console.log('[Auth Config] BETTER_AUTH_URL:', process.env.BETTER_AUTH_URL);
+console.log('[Auth Config] Cookie domain:', cookieDomain);
+console.log('[Auth Config] Secure cookies:', isProduction);
+
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
     provider: 'pg',
@@ -32,34 +53,31 @@ export const auth = betterAuth({
       maxAge: 60 * 5 // 5 minutes - cache session in cookie
     }
   },
+  // Cookie configuration at root level
+  // NOTE: better-auth seems to have issues with cookie domain configuration
+  // We explicitly set all cookie attributes for production
+  cookies: isProduction ? {
+    secure: true, // Force HTTPS in production
+    sameSite: 'none' as const, // Required for cross-origin
+    httpOnly: true, // Prevent XSS
+    path: '/', // Available on all paths
+    domain: '.fly.dev', // Explicit domain for fly.dev apps
+  } : {
+    secure: false,
+    sameSite: 'lax' as const,
+    httpOnly: true,
+    path: '/',
+  },
   // Enhanced security configuration
   advanced: {
     useSecureCookies: isProduction,
     crossSubDomainCookies: {
-      enabled: false // Disable unless using subdomains
+      enabled: isProduction && !!cookieDomain // Enable for production with domain
     },
     ipAddress: {
       // Track IP for security (important for rate limiting and suspicious activity)
       ipAddressHeaders: ['cf-connecting-ip', 'x-forwarded-for', 'x-real-ip'],
       disableIpTracking: false
-    },
-    cookies: {
-      session_token: {
-        name: "better-auth.session_token",
-        attributes: {
-          httpOnly: true,
-          sameSite: isProduction ? 'none' as const : 'lax' as const,
-          secure: isProduction,
-          path: '/',
-          // Add max-age for additional security
-          ...(isProduction && { maxAge: 60 * 60 * 24 * 7 }) // 7 days
-        }
-      }
-    },
-    defaultCookieAttributes: {
-      httpOnly: true,
-      secure: isProduction,
-      sameSite: isProduction ? 'none' as const : 'lax' as const
     }
   },
   secret: process.env.BETTER_AUTH_SECRET,

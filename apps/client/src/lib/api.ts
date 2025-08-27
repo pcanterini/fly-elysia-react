@@ -13,8 +13,24 @@ import type {
 } from "@my-app/shared";
 
 // API configuration
-export const API_BASE_URL =
-  import.meta.env.VITE_API_URL || "http://localhost:3001";
+// In production, use the server URL directly
+// In development, use localhost
+const getApiBaseUrl = () => {
+  // Check if we have an explicit environment variable
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  
+  // In production (when deployed), use the server URL
+  if (window.location.hostname.includes('fly.dev')) {
+    return 'https://bun-app-server.fly.dev';
+  }
+  
+  // Default to localhost for development
+  return 'http://localhost:3001';
+};
+
+export const API_BASE_URL = getApiBaseUrl();
 
 // Custom error class for API errors
 export class ApiClientError extends Error {

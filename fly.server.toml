@@ -50,6 +50,6 @@ primary_region = 'sea'
 
 # VM configuration
 [[vm]]
-  memory = '1gb'
+  memory = '512mb'
   cpu_kind = 'shared'
   cpus = 1

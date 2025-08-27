@@ -1,12 +1,10 @@
 :80 {
     root * /usr/share/caddy
 
-    # API proxy to production server
-    handle /api/* {
-        reverse_proxy https://bun-app-server.fly.dev
-    }
+    # No API proxy - client calls server directly for proper cookie handling
+    # This avoids cookie domain issues with proxied requests
 
-    # SPA fallback
+    # SPA fallback - all routes serve index.html for client-side routing
     try_files {path} /index.html
 
     file_server
