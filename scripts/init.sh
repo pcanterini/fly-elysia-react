@@ -153,7 +153,11 @@ if command -v docker &> /dev/null; then
         
         # Wait for database to be ready
         print_color "$YELLOW" "  ↳ Waiting for database to be ready..."
-        sleep 5
+        sleep 3
+        
+        # Create the database
+        print_color "$YELLOW" "  ↳ Creating database if it doesn't exist..."
+        ./scripts/create-database.sh "$DB_NAME" "postgres" "postgres"
         
         # Run migrations
         print_color "$YELLOW" "  ↳ Running database migrations..."

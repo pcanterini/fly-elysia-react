@@ -7,11 +7,12 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "bun run db:start && concurrently -p name -c \"bgBlue.bold,bgMagenta.bold\" \"bun:dev:client\" \"bun:dev:server\"",
+    "dev": "bun run db:start && bun run db:create && concurrently -p name -c \"bgBlue.bold,bgMagenta.bold\" \"bun:dev:client\" \"bun:dev:server\"",
     "dev:clean": "./scripts/cleanup-containers.sh && bun run dev",
     "dev:check": "./scripts/check-processes.sh",
     "db:start": "docker-compose up postgres redis -d",
     "db:stop": "docker-compose down",
+    "db:create": "./scripts/create-database.sh",
     "containers:stop": "./scripts/cleanup-containers.sh",
     "dev:client": "cd apps/client && bun run dev",
     "dev:server": "cd apps/server && bun run dev",
