@@ -46,11 +46,17 @@ bun install
 # Run both client and server concurrently
 bun run dev
 
-# Clean start (kills orphaned processes first)
+# Clean start (stops conflicting containers from other projects, then starts)
 bun run dev:clean
 
-# Check for running processes/ports
+# Check for running processes/ports and conflicting containers
 bun run dev:check
+
+# Stop all Docker containers from this project
+bun run db:stop
+
+# Stop ALL Redis/PostgreSQL containers (from any project)
+bun run containers:stop
 
 # Run individual apps
 bun run dev:client    # Frontend on http://localhost:5173

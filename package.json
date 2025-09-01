@@ -8,9 +8,11 @@
   ],
   "scripts": {
     "dev": "bun run db:start && concurrently -p name -c \"bgBlue.bold,bgMagenta.bold\" \"bun:dev:client\" \"bun:dev:server\"",
-    "dev:clean": "./scripts/dev-clean.sh",
+    "dev:clean": "./scripts/cleanup-containers.sh && bun run dev",
     "dev:check": "./scripts/check-processes.sh",
     "db:start": "docker-compose up postgres redis -d",
+    "db:stop": "docker-compose down",
+    "containers:stop": "./scripts/cleanup-containers.sh",
     "dev:client": "cd apps/client && bun run dev",
     "dev:server": "cd apps/server && bun run dev",
     "build": "bun run build:client && bun run build:server",
