@@ -11,13 +11,21 @@ if (!process.env.PRODUCTION_DATABASE_URL) {
   process.exit(1);
 }
 
-// Set DATABASE_URL to the production URL
-process.env.DATABASE_URL = process.env.PRODUCTION_DATABASE_URL;
+// Get the production database URL
+const prodDbUrl = process.env.PRODUCTION_DATABASE_URL;
 
 // Debug: Show which database we're connecting to (masked for security)
-const dbUrl = process.env.DATABASE_URL;
-const maskedUrl = dbUrl.replace(/(?<=:\/\/)([^:]+):([^@]+)@/, '$1:****@');
+const maskedUrl = prodDbUrl.replace(/(?<=:\/\/)([^:]+):([^@]+)@/, '$1:****@');
 console.log(`📊 Using database: ${maskedUrl}`);
+
+// Verify it's actually a Neon URL (safety check)
+if (!prodDbUrl.includes('neon.tech')) {
+  console.error('⚠️  Warning: PRODUCTION_DATABASE_URL does not appear to be a Neon database');
+  console.error('   URL:', maskedUrl);
+  console.error('   Continue anyway? Press Ctrl+C to cancel, or wait 5 seconds...');
+  const { execSync } = require('child_process');
+  execSync('sleep 5', { stdio: 'inherit' });
+}
 
 // Get the drizzle-kit command from arguments
 const command = process.argv.slice(2).join(' ');
@@ -41,10 +49,19 @@ if (command.includes('push')) {
 
 console.log(`🚀 Running drizzle-kit ${command} against production database...`);
 
-// Execute the drizzle-kit command
+// Execute the drizzle-kit command with DATABASE_URL passed directly
 const { execSync } = require('child_process');
 try {
-  execSync(`drizzle-kit ${command}`, { stdio: 'inherit' });
+  // Pass DATABASE_URL directly in the command to ensure it's used
+  // Use shell: true to allow environment variable expansion
+  execSync(`DATABASE_URL="${prodDbUrl}" drizzle-kit ${command}`, { 
+    stdio: 'inherit',
+    shell: true,
+    env: {
+      ...process.env,
+      DATABASE_URL: prodDbUrl // Also set in env for good measure
+    }
+  });
 } catch (error) {
   process.exit(1);
 }
