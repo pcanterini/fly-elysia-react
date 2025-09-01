@@ -44,11 +44,11 @@ fi
 
 # Get app names from fly.toml files or prompt user
 if [ -f "fly.client.toml" ]; then
-    CLIENT_APP=$(grep "^app = " fly.client.toml | sed 's/app = //g' | tr -d '"')
+    CLIENT_APP=$(grep "^app = " fly.client.toml | sed "s/app = //g" | tr -d "'\"")
 fi
 
 if [ -f "fly.server.toml" ]; then
-    SERVER_APP=$(grep "^app = " fly.server.toml | sed 's/app = //g' | tr -d '"')
+    SERVER_APP=$(grep "^app = " fly.server.toml | sed "s/app = //g" | tr -d "'\"")
 fi
 
 if [[ "$CLIENT_APP" == "YOUR-APP-NAME-client" ]] || [[ -z "$CLIENT_APP" ]]; then
@@ -61,9 +61,9 @@ if [[ "$CLIENT_APP" == "YOUR-APP-NAME-client" ]] || [[ -z "$CLIENT_APP" ]]; then
     CLIENT_APP="${APP_PREFIX}-client"
     SERVER_APP="${APP_PREFIX}-server"
     
-    # Update fly.toml files
-    sed -i.bak "s/YOUR-APP-NAME-client/$CLIENT_APP/" fly.client.toml
-    sed -i.bak "s/YOUR-APP-NAME-server/$SERVER_APP/" fly.server.toml
+    # Update fly.toml files (maintaining double quotes in the file)
+    sed -i.bak "s/\"YOUR-APP-NAME-client\"/\"$CLIENT_APP\"/" fly.client.toml
+    sed -i.bak "s/\"YOUR-APP-NAME-server\"/\"$SERVER_APP\"/" fly.server.toml
     rm fly.client.toml.bak fly.server.toml.bak
 fi
 
@@ -137,9 +137,9 @@ SETUP_REDIS=${SETUP_REDIS:-y}
 if [[ "$SETUP_REDIS" == "y" || "$SETUP_REDIS" == "Y" || "$SETUP_REDIS" == "" ]]; then
     echo ""
     echo "Choose Redis option:"
-    echo "  ${DIM}1)${NC} Create Fly Redis via Upstash ${DIM}(recommended)${NC}"
-    echo "  ${DIM}2)${NC} Use external Redis URL"
-    echo "  ${DIM}3)${NC} Skip"
+    echo -e "  ${DIM}1)${NC} Create Fly Redis via Upstash ${DIM}(recommended)${NC}"
+    echo -e "  ${DIM}2)${NC} Use external Redis URL"
+    echo -e "  ${DIM}3)${NC} Skip"
     echo ""
     echo -e "${GREEN}◆${NC} Select option ${DIM}(1)${NC}"
     read -p "  " REDIS_CHOICE
@@ -149,7 +149,7 @@ if [[ "$SETUP_REDIS" == "y" || "$SETUP_REDIS" == "Y" || "$SETUP_REDIS" == "" ]];
         echo -e "${DIM}  ↳ Creating Upstash Redis instance via Fly...${NC}"
         
         # Create Upstash Redis via Fly
-        fly redis create --name "${SERVER_APP}-redis" --no-replicas --region sea --plan free 2>/dev/null || {
+        fly redis create --name "${SERVER_APP}-redis" --no-replicas --region sea 2>/dev/null || {
             print_color "$YELLOW" "  Failed to create Redis. You may need to link your Upstash account first."
             echo ""
             echo -e "${GREEN}◆${NC} Link Upstash account now? ${DIM}(Y/n)${NC}"
@@ -158,7 +158,7 @@ if [[ "$SETUP_REDIS" == "y" || "$SETUP_REDIS" == "Y" || "$SETUP_REDIS" == "" ]];
             
             if [[ "$LINK_UPSTASH" == "y" || "$LINK_UPSTASH" == "Y" || "$LINK_UPSTASH" == "" ]]; then
                 print_color "$CYAN" "  Opening browser to link Upstash account..."
-                fly redis create
+                fly redis create --name "${SERVER_APP}-redis" --no-replicas --region sea
                 echo ""
                 echo -e "${GREEN}◆${NC} Once linked, enter your Redis URL:"
                 read -p "  " REDIS_URL
