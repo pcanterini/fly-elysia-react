@@ -1,34 +1,90 @@
-# dependencies (bun install)
-node_modules
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
 
-# output
-out
-dist
+# Build outputs
+dist/
+build/
+out/
 *.tgz
 
-# code coverage
-coverage
-*.lcov
-
-# logs
-logs
-_.log
-report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
-
-# dotenv environment variable files
+# Environment files
 .env
-.env.development.local
-.env.test.local
-.env.production.local
-.env.local
+.env.*
+!.env.example
+*.local
 
-# caches
+# Database
+*.db
+*.sqlite
+*.sqlite3
+drizzle/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# Testing
+coverage/
+*.lcov
+.nyc_output
+
+# Caches
+.cache/
 .eslintcache
-.cache
+.parcel-cache
 *.tsbuildinfo
+.turbo
 
-# IntelliJ based IDEs
-.idea
+# IDE files
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json.example
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
 
-# Finder (MacOS) folder config
+# OS files
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary files
+tmp/
+temp/
+.tmp/
+
+# Production builds
+/apps/client/dist
+/apps/server/dist
+/apps/server/test-dist
+
+# Local development
+.env.local
+.env.*.local
+apps/server/.env.prod.local
+
+# Fly.io
+fly.toml.local
+
+# Misc
+*.pem
+.vercel

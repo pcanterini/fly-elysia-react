@@ -1,6 +1,6 @@
 {
-  "name": "my-app",
-  "version": "1.0.0",
+  "name": "full-stack-template",
+  "version": "0.1.0",
   "private": true,
   "workspaces": [
     "apps/*",
@@ -26,16 +26,14 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:local": "playwright test --config=playwright.config.local.ts",
-    "docker:up": "docker-compose up --build",
-    "docker:down": "docker-compose down",
-    "docker:local": "docker-compose -f docker-compose.local.yml up --build",
-    "docker:local:down": "docker-compose -f docker-compose.local.yml down",
+    "docker:dev": "docker-compose up --build",
+    "docker:dev:down": "docker-compose down",
     "docker:prod": "docker-compose -f docker-compose.prod.yml up --build",
     "docker:prod:down": "docker-compose -f docker-compose.prod.yml down",
     "db:studio": "cd apps/server && bun run db:studio",
     "deploy": "./deploy.sh",
-    "deploy:server": "./deploy-server.sh",
-    "deploy:client": "./deploy-client.sh"
+    "deploy:server": "./deploy.sh --server-only",
+    "deploy:client": "./deploy.sh --client-only"
   },
   "devDependencies": {
     "@playwright/test": "^1.55.0",

@@ -1,28 +1,40 @@
-# Fly Elysia React
+# Full-Stack TypeScript Template
 
-A modern full-stack TypeScript application with React frontend and Elysia backend, deployed on Fly.io.
+A production-ready full-stack template with React, Elysia (Bun), PostgreSQL, and Redis. Deploy to Fly.io in minutes.
 
-## 🚀 Tech Stack
+![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)
+![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
+![Bun](https://img.shields.io/badge/Bun-000000?style=for-the-badge&logo=bun&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
 
-### Frontend
-- **React 19** with Vite for fast development
-- **TypeScript** for type safety
-- **TanStack Query** for server state management
-- **nuqs** for URL state management
-- **terminal.css** for retro terminal styling
-- **react-icons** for UI icons
+## ✨ Features
 
-### Backend
-- **Elysia** framework on Bun runtime
-- **Better-Auth** for authentication
-- **Drizzle ORM** with PostgreSQL
-- **CORS** configured for production and development
+- **🚀 Modern Stack**: React 19, Elysia/Bun, TypeScript, PostgreSQL
+- **🔐 Authentication**: Complete auth system with Better-Auth
+- **📦 Monorepo**: Organized workspace structure with shared types
+- **🎨 Styling**: Terminal.css for retro terminal aesthetics
+- **🔄 State Management**: TanStack Query + URL state with nuqs
+- **👷 Background Jobs**: Redis-based queue system with BullMQ
+- **🐳 Docker Ready**: Full Docker Compose setup for local development
+- **☁️ Deploy Ready**: Pre-configured for Fly.io deployment
+- **🛠️ Developer Experience**: Hot reload, TypeScript, ESLint, scripts
 
-### Infrastructure
-- **Fly.io** deployment (separate apps for client and server)
-- **PostgreSQL** database
-- **Docker** for containerization
-- **Bun** as JavaScript runtime and package manager
+## 🚀 Quick Start
+
+```bash
+# Clone and initialize
+git clone https://github.com/yourusername/this-template.git my-app
+cd my-app
+./scripts/init.sh
+
+# Start development
+bun run dev
+
+# Open in browser
+# Frontend: http://localhost:5173
+# Backend: http://localhost:3001
+```
 
 ## 📁 Project Structure
 
@@ -31,156 +43,210 @@ A modern full-stack TypeScript application with React frontend and Elysia backen
 ├── apps/
 │   ├── client/          # React frontend (Vite)
 │   │   ├── src/
-│   │   ├── public/
+│   │   │   ├── lib/     # API client & utilities
+│   │   │   ├── pages/   # Page components
+│   │   │   ├── contexts/# React contexts
+│   │   │   └── hooks/   # Custom hooks
 │   │   └── Dockerfile
 │   └── server/          # Elysia backend (Bun)
 │       ├── src/
-│       ├── Dockerfile     # Production build
-│       └── Dockerfile.dev # Development build
-├── docs/                # Documentation
+│       │   ├── auth/    # Authentication setup
+│       │   ├── db/      # Database & migrations
+│       │   ├── queue/   # Job queue system
+│       │   └── routes/  # API endpoints
+│       └── Dockerfile
+├── packages/
+│   └── shared/          # Shared types & constants
+├── scripts/             # Automation scripts
 ├── docker-compose.yml   # Local development setup
-└── fly.toml files      # Fly.io deployment configs
+├── docker-compose.prod.yml # Production setup
+└── fly.*.toml          # Fly.io deployment configs
 ```
 
-## 🛠️ Development
+## 🛠️ Tech Stack
+
+### Frontend
+- **React 19** - UI framework
+- **Vite** - Build tool and dev server
+- **TypeScript** - Type safety
+- **TanStack Query** - Server state management
+- **nuqs** - URL state management
+- **terminal.css** - Retro terminal styling
+- **react-icons** - Icon library
+
+### Backend
+- **Elysia** - Web framework for Bun
+- **Bun** - JavaScript runtime
+- **Better-Auth** - Authentication
+- **Drizzle ORM** - Database toolkit
+- **PostgreSQL** - Primary database
+- **Redis** - Caching & queues
+- **BullMQ** - Job queue management
+
+### DevOps
+- **Docker** - Containerization
+- **Fly.io** - Deployment platform
+- **GitHub Actions** - CI/CD (optional)
+
+## 📚 Documentation
+
+- **[Setup Guide](./SETUP.md)** - Complete setup and deployment instructions
+- **[Project Structure](./PROJECT_STRUCTURE.md)** - Directory layout and organization
+- **[Docker Guide](./docs/DOCKER.md)** - Docker configuration and usage
+- **[Contributing](./CONTRIBUTING.md)** - How to contribute to the project
+- **[Environment Variables](./.env.example)** - Configuration reference
+- **[Claude Instructions](./CLAUDE.md)** - AI assistant guidance
+
+## 💻 Development
 
 ### Prerequisites
-- [Bun](https://bun.sh) installed locally
-- [Docker](https://docker.com) and Docker Compose
-- [Fly CLI](https://fly.io/docs/hands-on/install-flyctl/) for deployments
 
-### Local Development (Without Docker)
+- [Bun](https://bun.sh) (v1.0+)
+- [Docker](https://docker.com) & Docker Compose
+- [Fly CLI](https://fly.io/docs/flyctl/install/) (for deployment)
+
+### Environment Setup
 
 ```bash
 # Install dependencies
 bun install
 
-# Start PostgreSQL
-docker-compose up postgres -d
+# Copy environment files
+cp apps/server/.env.example apps/server/.env
+cp apps/client/.env.example apps/client/.env
 
-# Run both frontend and backend
+# Start databases
+docker-compose up -d postgres redis
+
+# Run migrations
+cd apps/server && bun run db:push
+
+# Start development servers
 bun run dev
-
-# Or run individually
-bun run dev:client  # Frontend on http://localhost:5173
-bun run dev:server  # Backend on http://localhost:3001
 ```
 
-### Local Development (With Docker)
+### Available Scripts
 
 ```bash
-# Start the full stack
-docker-compose up -d
+# Development
+bun run dev           # Start all services
+bun run dev:client    # Start frontend only
+bun run dev:server    # Start backend only
+bun run dev:clean     # Clean start (kills orphaned processes)
 
-# View logs
-docker-compose logs -f
+# Docker
+bun run docker:dev    # Start with Docker (development)
+bun run docker:prod   # Start with Docker (production)
 
-# Stop everything
-docker-compose down
+# Database
+bun run db:studio     # Open Drizzle Studio
+bun run db:push       # Push schema changes
+bun run db:generate   # Generate migrations
+
+# Code Quality
+bun run lint          # Run ESLint
+bun run typecheck     # Run TypeScript checks
+
+# Building
+bun run build         # Build for production
+bun run build:client  # Build client only
+bun run build:server  # Build server only
+
+# Deployment
+bun run deploy        # Deploy both to Fly.io
+bun run deploy:client # Deploy client only
+bun run deploy:server # Deploy server only
 ```
 
-Services will be available at:
-- Frontend: http://localhost
-- Backend: http://localhost:3001
-- PostgreSQL: localhost:5432
+## 🚀 Deployment
 
-## 🧪 Testing & Quality
+### Quick Deploy to Fly.io
 
 ```bash
-# Lint code
-bun run lint
+# Run automated setup
+./scripts/setup-fly.sh
 
-# Type checking
-bun run typecheck
-
-# Build for production
-bun run build
-```
-
-## 🚢 Deployment
-
-The application is deployed to Fly.io with separate apps for frontend and backend.
-
-### Fly.io Apps
-- **Client**: `bun-app-client` - Static React app served by Nginx
-- **Server**: `bun-app-server` - Elysia API server
-- Both configured with auto start/stop for cost optimization
-
-### Deploy Commands
-
-```bash
-# Deploy everything
+# Or manual deployment
+fly auth login
+fly apps create your-app-client
+fly apps create your-app-server
+fly postgres create
+fly secrets set --app your-app-server
 bun run deploy
-
-# Deploy individually
-bun run deploy:client
-bun run deploy:server
-
-# Manual deployment
-fly deploy --config fly.client.toml  # Client
-fly deploy --config fly.server.toml  # Server
 ```
 
-### Environment Variables
+See [SETUP.md](./SETUP.md) for detailed deployment instructions.
 
-#### Server (Production)
-- `DATABASE_URL` - PostgreSQL connection string
-- `BETTER_AUTH_SECRET` - Authentication secret key
-- `BETTER_AUTH_URL` - Auth base URL (https://bun-app-server.fly.dev)
-- `NODE_ENV` - Set to "production" at build time
+## 🔧 Configuration
 
-#### Client (Production)
-- API URL is configured in `src/lib/api.ts` based on environment
+### Key Environment Variables
 
-## 🔐 Authentication
+**Server** (`apps/server/.env`):
+- `DATABASE_URL` - PostgreSQL connection
+- `BETTER_AUTH_SECRET` - Auth secret key
+- `REDIS_URL` - Redis connection
+- `NODE_ENV` - Environment mode
 
-The app uses Better-Auth for authentication with:
-- Email/password authentication
-- Session-based auth with secure cookies
-- Cross-origin cookie configuration for production
-- Protected routes and API endpoints
+**Client** (`apps/client/.env`):
+- `VITE_API_URL` - Backend URL (optional)
+- `VITE_APP_NAME` - Application name
 
-## 📝 Database
+## 📖 API Endpoints
 
-### Migrations
+### Authentication
+- `POST /api/auth/sign-up` - User registration
+- `POST /api/auth/sign-in` - User login
+- `POST /api/auth/sign-out` - User logout
+- `GET /api/auth/session` - Get current session
 
-```bash
-# Run database studio
-bun run db:studio
+### Health & Status
+- `GET /api/health` - Health check
+- `GET /api/stats` - Application statistics
 
-# Generate migrations (when schema changes)
-cd apps/server
-bun run db:generate
+### Jobs Queue (Example)
+- `POST /api/jobs` - Create job
+- `GET /api/jobs` - List jobs
+- `GET /api/jobs/:id` - Get job details
+- `POST /api/jobs/:id/retry` - Retry failed job
 
-# Push schema changes
-bun run db:push
-```
+## 🏗️ Architecture Decisions
 
-## 🐳 Docker Details
-
-### Development Setup
-- Uses `docker-compose.yml` for local development
-- Includes PostgreSQL, server, and client containers
-- Volume mounts for hot reloading
-- Health checks for service dependencies
-
-### Production Builds
-- Multi-stage Docker builds for optimization
-- Separate Dockerfiles for development and production
-- NODE_ENV handled at build time for proper bundling
-
-## 📚 Additional Documentation
-
-- [Cookie Configuration Fix](docs/COOKIE_FIX.md) - Details on cross-origin authentication setup
-- [Claude Instructions](CLAUDE.md) - AI assistant guidance for this codebase
+- **Monorepo Structure**: Simplified dependency management and shared code
+- **Bun Runtime**: Fast startup, built-in TypeScript, native test runner
+- **Elysia Framework**: Type-safe, fast, built for Bun
+- **Better-Auth**: Modern auth with good defaults
+- **TanStack Query**: Powerful data synchronization
+- **Terminal.css**: Unique aesthetic, lightweight, no build step
+- **Fly.io**: Simple deployment, good free tier, scales easily
 
 ## 🤝 Contributing
 
-1. Follow existing code conventions
-2. Use Bun (not npm or yarn) for package management
-3. Test locally with Docker before pushing
-4. Ensure linting and type checking pass
+Contributions are welcome! Please feel free to submit a Pull Request.
 
-## 📄 License
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
-Private project - All rights reserved
+## 📝 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- [Bun](https://bun.sh) for the amazing runtime
+- [Elysia](https://elysiajs.com) for the web framework
+- [Better-Auth](https://better-auth.com) for authentication
+- [Terminal.css](https://terminalcss.xyz) for the styling
+- [Fly.io](https://fly.io) for hosting
+
+## 📞 Support
+
+- [Create an Issue](https://github.com/yourusername/this-template/issues)
+- [Discussions](https://github.com/yourusername/this-template/discussions)
+- [Documentation](./SETUP.md)
+
+---
+
+Built with ❤️ using modern web technologies

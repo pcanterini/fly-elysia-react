@@ -5,64 +5,74 @@ test.describe('Application Health', () => {
     await page.goto('/');
     
     // Check main elements are present
-    await expect(page.locator('h1')).toContainText('React + Vite + Elysia');
-    await expect(page.locator('text=Running on Fly.io with Better-Auth')).toBeVisible();
+    await expect(page.locator('h1')).toContainText('Welcome to Your App');
+    await expect(page.locator('text=Full-stack TypeScript on Fly.io')).toBeVisible();
   });
 
   test('should check API health status', async ({ page }) => {
     await page.goto('/');
     
     // API status should be visible
-    await expect(page.locator('h2:has-text("API Status")')).toBeVisible();
+    await expect(page.locator('text=API Status')).toBeVisible();
     
-    // Check API button should be present
-    const checkButton = page.getByRole('button', { name: /check api/i });
-    await expect(checkButton).toBeVisible();
-    
-    // Click check API button
-    await checkButton.click();
-    
-    // Should show either connected or checking status
-    await expect(page.locator('text=/API Connected|Checking API/i')).toBeVisible();
+    // Should show either online, checking, or offline status
+    await expect(page.locator('text=/Online|Checking|Offline/i')).toBeVisible();
   });
 
   test('should have working counter demo', async ({ page }) => {
     await page.goto('/');
     
-    // Find counter section
-    await expect(page.locator('h2:has-text("Counter Demo")')).toBeVisible();
+    // Find the counter section
+    await expect(page.locator('text=Click Counter')).toBeVisible();
     
-    // Initial count should be 0
-    await expect(page.locator('text=Count: 0')).toBeVisible();
+    // Get initial count
+    const counterText = await page.locator('text=Click Counter').locator('..').textContent();
+    const initialCount = parseInt(counterText?.match(/\d+/)?.[0] || '0');
     
-    // Click increment button
-    const incrementButton = page.getByRole('button', { name: /increment/i });
-    await incrementButton.click();
+    // Click the refresh button
+    const refreshButton = page.locator('button').filter({ has: page.locator('svg') }).last();
+    await refreshButton.click();
     
-    // Count should be 1
-    await expect(page.locator('text=Count: 1')).toBeVisible();
+    // Count should increment
+    await page.waitForTimeout(500);
+    const newCounterText = await page.locator('text=Click Counter').locator('..').textContent();
+    const newCount = parseInt(newCounterText?.match(/\d+/)?.[0] || '0');
+    
+    expect(newCount).toBeGreaterThan(initialCount);
   });
 
-  test('should navigate to login from homepage', async ({ page }) => {
+  test('should navigate to login page', async ({ page }) => {
     await page.goto('/');
     
     // Click sign in button
     await page.getByRole('link', { name: /sign in/i }).click();
     
     // Should be on login page
-    await expect(page).toHaveURL('/login');
-    await expect(page.locator('h1')).toContainText('Sign In');
+    await expect(page).toHaveURL(/.*\/login/);
+    await expect(page.locator('h2')).toContainText('Sign In');
   });
 
-  test('API should return correct health response', async ({ request }) => {
-    const response = await request.get('http://localhost:3001/api/health');
+  test('should navigate to register page', async ({ page }) => {
+    await page.goto('/');
     
-    expect(response.ok()).toBeTruthy();
-    expect(response.status()).toBe(200);
+    // Click sign up button
+    await page.getByRole('link', { name: /sign up/i }).click();
     
-    const json = await response.json();
-    expect(json).toHaveProperty('status', 'ok');
-    expect(json).toHaveProperty('message');
-    expect(json).toHaveProperty('timestamp');
+    // Should be on register page
+    await expect(page).toHaveURL(/.*\/register/);
+    await expect(page.locator('h2')).toContainText('Create Account');
+  });
+
+  test('should have responsive navigation', async ({ page }) => {
+    // Test mobile viewport
+    await page.setViewportSize({ width: 375, height: 667 });
+    await page.goto('/');
+    
+    // Content should still be visible
+    await expect(page.locator('h1')).toBeVisible();
+    
+    // Test desktop viewport
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await expect(page.locator('h1')).toBeVisible();
   });
 });

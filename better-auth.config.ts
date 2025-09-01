@@ -3,7 +3,7 @@ import { betterAuth } from 'better-auth';
 export const auth = betterAuth({
   database: {
     provider: 'postgresql',
-    url: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/fly_elysia_react',
+    url: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/your_database_name',
   },
   emailAndPassword: {
     enabled: true,
@@ -24,6 +24,7 @@ export const auth = betterAuth({
     'http://localhost:5174', 
     'http://localhost:3000',
     'http://localhost:4173',
-    'https://bun-app-client.fly.dev',
+    // Add your production URL here:
+    // 'https://your-app-client.fly.dev',
   ],
 });

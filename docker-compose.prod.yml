@@ -1,4 +1,9 @@
+# Docker Compose for Production
+# Uses external managed PostgreSQL and Redis services
+# Only contains application services (server and client)
+
 services:
+  # Backend Server (Production build)
   server:
     build:
       context: .
@@ -10,19 +15,41 @@ services:
       - DATABASE_URL=${DATABASE_URL}
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
       - BETTER_AUTH_URL=${BETTER_AUTH_URL}
+      - REDIS_URL=${REDIS_URL}
+      - RUN_WORKERS=${RUN_WORKERS:-false}
+    # External services are used in production
     networks:
       - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
+  # Frontend Client (Production build)
   client:
     build:
       context: .
       dockerfile: apps/client/Dockerfile
     ports:
       - "80:80"
+      - "443:443"
+    environment:
+      - NODE_ENV=production
     depends_on:
-      - server
+      server:
+        condition: service_healthy
     networks:
       - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
 networks:
   app-network:

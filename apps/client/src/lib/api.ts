@@ -21,9 +21,13 @@ const getApiBaseUrl = () => {
     return import.meta.env.VITE_API_URL;
   }
   
-  // In production (when deployed), use the server URL
-  if (window.location.hostname.includes('fly.dev')) {
-    return 'https://bun-app-server.fly.dev';
+  // In production (when deployed), detect based on hostname pattern
+  // This assumes your production URLs follow the pattern: your-app-client.domain.com
+  // Update this logic based on your deployment setup
+  if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    // Replace 'client' with 'server' in the hostname for API URL
+    const serverHostname = window.location.hostname.replace('-client', '-server');
+    return `https://${serverHostname}`;
   }
   
   // Default to localhost for development

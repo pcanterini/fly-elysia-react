@@ -1,9 +1,9 @@
-# fly.toml app configuration file for bun-app-client
+# fly.toml app configuration file for client
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
 
-app = 'bun-app-client'
+app = 'YOUR-APP-NAME-client'
 primary_region = 'sea'
 
 [build]

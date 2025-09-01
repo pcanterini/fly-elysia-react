@@ -1,69 +1,139 @@
-# React + TypeScript + Vite
+# Client Application
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React frontend built with Vite and TypeScript.
 
-Currently, two official plugins are available:
+## Architecture
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **Framework**: React 19 with TypeScript
+- **Build Tool**: Vite for fast development and optimized builds
+- **State Management**: TanStack Query for server state, nuqs for URL state
+- **Styling**: terminal.css for retro terminal aesthetics
+- **Routing**: React Router v7
+- **Icons**: react-icons library
 
-## Expanding the ESLint configuration
+## Project Structure
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      ...tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      ...tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      ...tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```
+src/
+├── assets/       # Static assets (images, fonts)
+├── contexts/     # React contexts (Auth, Theme)
+├── hooks/        # Custom React hooks
+├── lib/          # Utilities and API client
+├── pages/        # Page components
+├── styles/       # Global styles
+├── tests/        # Test files
+├── types/        # TypeScript type definitions
+├── App.tsx       # Main app component with routing
+└── main.tsx      # Application entry point
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Key Files
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+- `lib/api.ts` - Centralized API client with typed methods
+- `contexts/AuthContext.tsx` - Authentication state management
+- `hooks/useAuth.ts` - Authentication hook
+- `pages/` - All page components (Home, Dashboard, Login, etc.)
 
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Development
+
+```bash
+# Run development server
+bun run dev
+
+# Build for production
+bun run build
+
+# Run linter
+bun run lint
+
+# Preview production build
+bun run preview
+
+# Run tests
+bun run test
 ```
+
+## Environment Variables
+
+Create `.env` file (optional - defaults are in code):
+
+```env
+# API URL (auto-detected if not set)
+VITE_API_URL=http://localhost:3001
+
+# App configuration
+VITE_APP_NAME=My App
+VITE_APP_VERSION=1.0.0
+```
+
+## API Integration
+
+The client uses a typed API client (`lib/api.ts`) that:
+- Auto-detects API URL based on environment
+- Handles authentication cookies
+- Provides typed methods for all endpoints
+- Integrates with TanStack Query
+
+## Authentication
+
+Uses Better-Auth with:
+- Session-based authentication
+- Secure cookie handling
+- Protected routes
+- Auto-refresh on mount
+
+## Styling
+
+Uses terminal.css for a retro terminal look. Custom styles in:
+- `src/index.css` - Global styles
+- `src/App.css` - App-specific styles
+- Component-specific CSS modules
+
+## Building for Production
+
+```bash
+# Build the application
+bun run build
+
+# Output will be in dist/
+# Serve with any static file server
+```
+
+## Docker
+
+```bash
+# Development with hot reload
+docker build -f Dockerfile.dev -t client-dev .
+docker run -p 5173:5173 -v $(pwd)/src:/app/src client-dev
+
+# Production build
+docker build -f Dockerfile -t client-prod .
+docker run -p 80:80 client-prod
+```
+
+## Testing
+
+```bash
+# Run unit tests
+bun run test
+
+# Run with UI
+bun run test:ui
+
+# Coverage report
+bun run test:coverage
+```
+
+## Deployment
+
+The client is configured for deployment to:
+- Fly.io (via fly.client.toml)
+- Any static hosting service
+- Docker containers
+
+## Performance
+
+- Code splitting with React.lazy
+- Optimized bundle with Vite
+- Image optimization
+- Caching strategies in place
