@@ -14,6 +14,11 @@ if (!process.env.PRODUCTION_DATABASE_URL) {
 // Set DATABASE_URL to the production URL
 process.env.DATABASE_URL = process.env.PRODUCTION_DATABASE_URL;
 
+// Debug: Show which database we're connecting to (masked for security)
+const dbUrl = process.env.DATABASE_URL;
+const maskedUrl = dbUrl.replace(/(?<=:\/\/)([^:]+):([^@]+)@/, '$1:****@');
+console.log(`📊 Using database: ${maskedUrl}`);
+
 // Get the drizzle-kit command from arguments
 const command = process.argv.slice(2).join(' ');
 
