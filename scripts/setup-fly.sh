@@ -274,6 +274,21 @@ if [[ "$SETUP_DB" == "y" || "$SETUP_DB" == "Y" || "$SETUP_DB" == "" ]]; then
                             echo -e "${DIM}  ↳ Setting DATABASE_URL secret...${NC}"
                             fly secrets set DATABASE_URL="$DATABASE_URL" --app "$SERVER_APP" &>/dev/null
                             echo -e "${GREEN}  ✓ Database configured in Fly${NC}"
+                            
+                            # Save production database URL to local .env for migration purposes
+                            if [ -f "apps/server/.env" ]; then
+                                if grep -q "^PRODUCTION_DATABASE_URL=" apps/server/.env; then
+                                    # Update existing
+                                    sed -i.bak "s|^PRODUCTION_DATABASE_URL=.*|PRODUCTION_DATABASE_URL=\"$DATABASE_URL\"|" apps/server/.env
+                                    rm apps/server/.env.bak
+                                else
+                                    # Add new
+                                    echo "" >> apps/server/.env
+                                    echo "# ⚠️ PRODUCTION Database - Use with extreme caution!" >> apps/server/.env
+                                    echo "PRODUCTION_DATABASE_URL=\"$DATABASE_URL\"" >> apps/server/.env
+                                fi
+                                echo -e "${GREEN}  ✓ Saved production database URL to local .env${NC}"
+                            fi
                         else
                             print_color "$YELLOW" "  Could not get connection string automatically"
                             echo -e "${DIM}  Visit: https://console.neon.tech/app/projects/${PROJECT_ID}${NC}"
@@ -283,6 +298,21 @@ if [[ "$SETUP_DB" == "y" || "$SETUP_DB" == "Y" || "$SETUP_DB" == "" ]]; then
                                 echo -e "${DIM}  ↳ Setting DATABASE_URL secret...${NC}"
                                 fly secrets set DATABASE_URL="$DATABASE_URL" --app "$SERVER_APP" &>/dev/null
                                 echo -e "${GREEN}  ✓ Database configured${NC}"
+                                
+                                # Save production database URL to local .env for migration purposes
+                                if [ -f "apps/server/.env" ]; then
+                                    if grep -q "^PRODUCTION_DATABASE_URL=" apps/server/.env; then
+                                        # Update existing
+                                        sed -i.bak "s|^PRODUCTION_DATABASE_URL=.*|PRODUCTION_DATABASE_URL=\"$DATABASE_URL\"|" apps/server/.env
+                                        rm apps/server/.env.bak
+                                    else
+                                        # Add new
+                                        echo "" >> apps/server/.env
+                                        echo "# ⚠️ PRODUCTION Database - Use with extreme caution!" >> apps/server/.env
+                                        echo "PRODUCTION_DATABASE_URL=\"$DATABASE_URL\"" >> apps/server/.env
+                                    fi
+                                    echo -e "${GREEN}  ✓ Saved production database URL to local .env${NC}"
+                                fi
                             fi
                         fi
                     else
@@ -311,6 +341,21 @@ if [[ "$SETUP_DB" == "y" || "$SETUP_DB" == "Y" || "$SETUP_DB" == "" ]]; then
         echo -e "${DIM}  ↳ Setting DATABASE_URL secret...${NC}"
         fly secrets set DATABASE_URL="$DATABASE_URL" --app "$SERVER_APP"
         echo -e "${GREEN}  ✓ Database configured${NC}"
+        
+        # Save production database URL to local .env for migration purposes
+        if [ -f "apps/server/.env" ]; then
+            if grep -q "^PRODUCTION_DATABASE_URL=" apps/server/.env; then
+                # Update existing
+                sed -i.bak "s|^PRODUCTION_DATABASE_URL=.*|PRODUCTION_DATABASE_URL=\"$DATABASE_URL\"|" apps/server/.env
+                rm apps/server/.env.bak
+            else
+                # Add new
+                echo "" >> apps/server/.env
+                echo "# ⚠️ PRODUCTION Database - Use with extreme caution!" >> apps/server/.env
+                echo "PRODUCTION_DATABASE_URL=\"$DATABASE_URL\"" >> apps/server/.env
+            fi
+            echo -e "${GREEN}  ✓ Saved production database URL to local .env${NC}"
+        fi
     elif [ -z "$DATABASE_URL" ] && [ "$DB_CHOICE" != "3" ]; then
         print_color "$YELLOW" "  ⚠ Warning: No database URL provided. You'll need to set it later:"
         print_color "$DIM" "  fly secrets set DATABASE_URL=\"postgresql://...\" --app $SERVER_APP"
