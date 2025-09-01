@@ -184,11 +184,12 @@ if [[ "$SETUP_DB" == "y" || "$SETUP_DB" == "Y" || "$SETUP_DB" == "" ]]; then
                 # Create Neon project with name based on app prefix
                 PROJECT_NAME="${APP_PREFIX:-$SERVER_APP}"
                 echo -e "${DIM}  ↳ Creating Neon project: $PROJECT_NAME${NC}"
+                echo -e "${DIM}  Region: AWS US West 2 (Oregon)${NC}"
                 echo -e "${DIM}  Note: You may be prompted to select an organization${NC}"
                 
-                # Create project with JSON output
+                # Create project with JSON output in Oregon region
                 echo ""
-                PROJECT_OUTPUT=$($NEON_CMD projects create --name "$PROJECT_NAME" --output json 2>&1)
+                PROJECT_OUTPUT=$($NEON_CMD projects create --name "$PROJECT_NAME" --region-id aws-us-west-2 --output json 2>&1)
                 CREATE_STATUS=$?
                 
                 if [ $CREATE_STATUS -ne 0 ]; then
@@ -313,8 +314,8 @@ if [[ "$SETUP_REDIS" == "y" || "$SETUP_REDIS" == "Y" || "$SETUP_REDIS" == "" ]];
         echo -e "${DIM}  ↳ Creating Upstash Redis instance via Fly...${NC}"
         echo ""
         
-        # Create Upstash Redis via Fly and capture output to extract URL
-        REDIS_OUTPUT=$(fly redis create --name "${SERVER_APP}-redis" --no-replicas --region sea 2>&1)
+        # Create Upstash Redis via Fly with --no-eviction to avoid interactive prompt
+        REDIS_OUTPUT=$(fly redis create --name "${SERVER_APP}-redis" --no-replicas --no-eviction --region sea 2>&1)
         REDIS_CREATE_STATUS=$?
         
         if [ $REDIS_CREATE_STATUS -eq 0 ]; then
@@ -349,8 +350,17 @@ if [[ "$SETUP_REDIS" == "y" || "$SETUP_REDIS" == "Y" || "$SETUP_REDIS" == "" ]];
                 
                 if [[ "$LINK_UPSTASH" == "y" || "$LINK_UPSTASH" == "Y" || "$LINK_UPSTASH" == "" ]]; then
                     echo -e "${DIM}  This will open your browser to link accounts...${NC}"
-                    # Run the command again interactively
-                    fly redis create --name "${SERVER_APP}-redis" --no-replicas --region sea
+                    echo -e "${GREEN}◆${NC} Enable eviction for Redis? ${DIM}(y/N)${NC}"
+                    echo -e "${DIM}  Eviction removes old data when memory is full (useful for caching)${NC}"
+                    read -p "  " ENABLE_EVICTION
+                    ENABLE_EVICTION=${ENABLE_EVICTION:-n}
+                    
+                    # Run the command again interactively with appropriate flag
+                    if [[ "$ENABLE_EVICTION" == "y" || "$ENABLE_EVICTION" == "Y" ]]; then
+                        fly redis create --name "${SERVER_APP}-redis" --no-replicas --enable-eviction --region sea
+                    else
+                        fly redis create --name "${SERVER_APP}-redis" --no-replicas --no-eviction --region sea
+                    fi
                     echo ""
                     echo -e "${GREEN}◆${NC} Enter the Redis URL shown above:"
                     read -p "  " REDIS_URL
