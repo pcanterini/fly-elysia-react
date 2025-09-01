@@ -19,7 +19,7 @@ DB_NAME=${1:-${DB_NAME:-"your_database_name"}}
 DB_USER=${2:-${DB_USER:-"postgres"}}
 DB_PASSWORD=${3:-${DB_PASSWORD:-"postgres"}}
 
-echo "🗄️  Creating database '$DB_NAME' if it doesn't exist..."
+echo "Creating database '$DB_NAME' if it doesn't exist..."
 
 # Wait for PostgreSQL to be ready
 for i in {1..10}; do
@@ -35,7 +35,7 @@ done
 POSTGRES_CONTAINER=$(docker ps --format "{{.Names}}" | grep postgres | head -1)
 
 if [ -z "$POSTGRES_CONTAINER" ]; then
-    echo "❌ No PostgreSQL container found running"
+    echo "✗ No PostgreSQL container found running"
     exit 1
 fi
 
@@ -44,8 +44,8 @@ docker exec $POSTGRES_CONTAINER psql -U $DB_USER -tc "SELECT 1 FROM pg_database 
     docker exec $POSTGRES_CONTAINER psql -U $DB_USER -c "CREATE DATABASE \"$DB_NAME\";"
 
 if [ $? -eq 0 ]; then
-    echo "✅ Database '$DB_NAME' is ready"
+    echo "✓ Database '$DB_NAME' is ready"
 else
-    echo "❌ Failed to create database '$DB_NAME'"
+    echo "✗ Failed to create database '$DB_NAME'"
     exit 1
 fi
