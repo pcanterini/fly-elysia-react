@@ -311,33 +311,64 @@ if [[ "$SETUP_REDIS" == "y" || "$SETUP_REDIS" == "Y" || "$SETUP_REDIS" == "" ]];
 
     if [ "$REDIS_CHOICE" = "1" ]; then
         echo -e "${DIM}  ↳ Creating Upstash Redis instance via Fly...${NC}"
+        echo ""
         
-        # Create Upstash Redis via Fly
-        fly redis create --name "${SERVER_APP}-redis" --no-replicas --region sea 2>/dev/null || {
-            print_color "$YELLOW" "  Failed to create Redis. You may need to link your Upstash account first."
-            echo ""
-            echo -e "${GREEN}◆${NC} Link Upstash account now? ${DIM}(Y/n)${NC}"
-            read -p "  " LINK_UPSTASH
-            LINK_UPSTASH=${LINK_UPSTASH:-y}
+        # Create Upstash Redis via Fly and capture output to extract URL
+        REDIS_OUTPUT=$(fly redis create --name "${SERVER_APP}-redis" --no-replicas --region sea 2>&1)
+        REDIS_CREATE_STATUS=$?
+        
+        if [ $REDIS_CREATE_STATUS -eq 0 ]; then
+            # Extract Redis URL from the output
+            # Look for the line that contains the redis:// URL
+            REDIS_URL=$(echo "$REDIS_OUTPUT" | grep -o 'redis://[^[:space:]]*' | head -1)
             
-            if [[ "$LINK_UPSTASH" == "y" || "$LINK_UPSTASH" == "Y" || "$LINK_UPSTASH" == "" ]]; then
-                print_color "$CYAN" "  Opening browser to link Upstash account..."
-                fly redis create --name "${SERVER_APP}-redis" --no-replicas --region sea
+            if [ ! -z "$REDIS_URL" ]; then
+                echo -e "${GREEN}  ✓ Redis created successfully${NC}"
+                echo -e "${DIM}  ↳ Setting REDIS_URL secret...${NC}"
+                fly secrets set REDIS_URL="$REDIS_URL" --app "$SERVER_APP" &>/dev/null
+                echo -e "${GREEN}  ✓ Redis configured${NC}"
+            else
+                # If we couldn't extract the URL, show the output and ask for manual input
+                echo "$REDIS_OUTPUT"
                 echo ""
-                echo -e "${GREEN}◆${NC} Once linked, enter your Redis URL:"
+                print_color "$YELLOW" "  Redis created but could not extract URL"
+                echo -e "${GREEN}◆${NC} Enter the Redis URL from above:"
                 read -p "  " REDIS_URL
                 if [ ! -z "$REDIS_URL" ]; then
-                    fly secrets set REDIS_URL="$REDIS_URL" --app "$SERVER_APP"
+                    fly secrets set REDIS_URL="$REDIS_URL" --app "$SERVER_APP" &>/dev/null
                     echo -e "${GREEN}  ✓ Redis configured${NC}"
                 fi
             fi
-        }
-        
-        # If Redis creation succeeded, get the connection details
-        if fly redis list 2>/dev/null | grep -q "${SERVER_APP}-redis"; then
-            echo -e "${DIM}  ↳ Attaching Redis to application...${NC}"
-            fly redis attach "${SERVER_APP}-redis" --app "$SERVER_APP" || true
-            echo -e "${GREEN}  ✓ Redis created and attached${NC}"
+        else
+            # Check if it's because Upstash account needs linking
+            if echo "$REDIS_OUTPUT" | grep -q "link.*Upstash\|Upstash.*account"; then
+                print_color "$YELLOW" "  You need to link your Upstash account first"
+                echo -e "${GREEN}◆${NC} Link Upstash account now? ${DIM}(Y/n)${NC}"
+                read -p "  " LINK_UPSTASH
+                LINK_UPSTASH=${LINK_UPSTASH:-y}
+                
+                if [[ "$LINK_UPSTASH" == "y" || "$LINK_UPSTASH" == "Y" || "$LINK_UPSTASH" == "" ]]; then
+                    echo -e "${DIM}  This will open your browser to link accounts...${NC}"
+                    # Run the command again interactively
+                    fly redis create --name "${SERVER_APP}-redis" --no-replicas --region sea
+                    echo ""
+                    echo -e "${GREEN}◆${NC} Enter the Redis URL shown above:"
+                    read -p "  " REDIS_URL
+                    if [ ! -z "$REDIS_URL" ]; then
+                        fly secrets set REDIS_URL="$REDIS_URL" --app "$SERVER_APP" &>/dev/null
+                        echo -e "${GREEN}  ✓ Redis configured${NC}"
+                    fi
+                fi
+            else
+                print_color "$YELLOW" "  Failed to create Redis"
+                echo -e "${DIM}  Error: $REDIS_OUTPUT${NC}"
+                echo -e "${GREEN}◆${NC} Enter Redis URL manually:"
+                read -p "  " REDIS_URL
+                if [ ! -z "$REDIS_URL" ]; then
+                    fly secrets set REDIS_URL="$REDIS_URL" --app "$SERVER_APP" &>/dev/null
+                    echo -e "${GREEN}  ✓ Redis configured${NC}"
+                fi
+            fi
         fi
         
     elif [ "$REDIS_CHOICE" = "2" ]; then

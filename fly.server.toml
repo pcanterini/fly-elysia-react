@@ -53,3 +53,15 @@ primary_region = 'sea'
   memory = '256mb'
   cpu_kind = 'shared'
   cpus = 1
+
+# Deployment settings - prevent multiple machines and HA
+[deploy]
+  strategy = "immediate"
+
+# Prevent creating multiple machines - use exactly 1 per process
+[experimental]
+  auto_rollback = false
+
+# Scale configuration
+[[services.machines]]
+  count = 1  # Exactly 1 machine for web process
