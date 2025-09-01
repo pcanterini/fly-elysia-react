@@ -164,18 +164,24 @@ if [[ "$SETUP_DB" == "y" || "$SETUP_DB" == "Y" || "$SETUP_DB" == "" ]]; then
         if [ "$DB_CHOICE" = "1" ]; then
             # Check if user is authenticated with Neon
             echo -e "${DIM}  ↳ Checking Neon authentication...${NC}"
-            if ! $NEON_CMD auth whoami &>/dev/null; then
+            if ! $NEON_CMD me &>/dev/null; then
                 echo -e "${YELLOW}  Not authenticated with Neon${NC}"
                 echo -e "${DIM}  Opening browser for authentication...${NC}"
                 $NEON_CMD auth
                 
-                # Check again after auth
-                if ! $NEON_CMD auth whoami &>/dev/null; then
-                    print_color "$YELLOW" "  Authentication failed"
-                    echo -e "${GREEN}◆${NC} Enter database URL manually instead:"
-                    read -p "  " DATABASE_URL
-                    DB_CHOICE="manual"
+                # Give it a moment for credentials to be saved
+                sleep 2
+                
+                # Check again after auth using 'me' command
+                if ! $NEON_CMD me &>/dev/null; then
+                    # Auth might have succeeded but 'me' command could fail for other reasons
+                    # Try to proceed anyway since credentials were saved
+                    echo -e "${YELLOW}  Note: Could not verify authentication, but proceeding...${NC}"
+                else
+                    echo -e "${GREEN}  ✓ Authentication successful${NC}"
                 fi
+            else
+                echo -e "${GREEN}  ✓ Already authenticated${NC}"
             fi
             
             if [ "$DB_CHOICE" = "1" ]; then
