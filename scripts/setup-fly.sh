@@ -98,11 +98,18 @@ if [[ "$CREATE_APPS" == "y" || "$CREATE_APPS" == "Y" || "$CREATE_APPS" == "" ]];
     fi
 fi
 
-# Database setup - Always require external database
+# Function to check if neonctl is available
+check_neonctl() {
+    if command -v neonctl &> /dev/null || command -v neon &> /dev/null; then
+        return 0
+    fi
+    return 1
+}
+
+# Database setup
 echo ""
 print_color "$CYAN" "Database Setup"
 echo -e "${YELLOW}◆ PostgreSQL is required for this application${NC}"
-echo -e "${DIM}  Recommended providers: Neon, Supabase, Railway, or any PostgreSQL service${NC}"
 echo ""
 
 echo -e "${GREEN}◆${NC} Configure PostgreSQL database? ${DIM}(Y/n)${NC}"
@@ -110,15 +117,106 @@ read -p "  " SETUP_DB
 SETUP_DB=${SETUP_DB:-y}
 
 if [[ "$SETUP_DB" == "y" || "$SETUP_DB" == "Y" || "$SETUP_DB" == "" ]]; then
-    echo -e "${GREEN}◆${NC} PostgreSQL connection URL:"
-    echo -e "${DIM}  Format: postgresql://user:password@host:port/database${NC}"
-    read -p "  " DATABASE_URL
-
-    if [ ! -z "$DATABASE_URL" ]; then
+    echo ""
+    echo "Choose database option:"
+    echo -e "  ${DIM}1)${NC} Create new Neon database ${DIM}(automated)${NC}"
+    echo -e "  ${DIM}2)${NC} Use existing database URL ${DIM}(manual)${NC}"
+    echo -e "  ${DIM}3)${NC} Skip"
+    echo ""
+    echo -e "${GREEN}◆${NC} Select option ${DIM}(1)${NC}"
+    read -p "  " DB_CHOICE
+    DB_CHOICE=${DB_CHOICE:-1}
+    
+    if [ "$DB_CHOICE" = "1" ]; then
+        # Check if neonctl is installed
+        if ! check_neonctl; then
+            echo -e "${YELLOW}  Neon CLI not found${NC}"
+            echo -e "${GREEN}◆${NC} Install Neon CLI? ${DIM}(Y/n)${NC}"
+            read -p "  " INSTALL_NEON
+            INSTALL_NEON=${INSTALL_NEON:-y}
+            
+            if [[ "$INSTALL_NEON" == "y" || "$INSTALL_NEON" == "Y" || "$INSTALL_NEON" == "" ]]; then
+                echo -e "${DIM}  ↳ Installing Neon CLI via npm...${NC}"
+                npm install -g neonctl 2>/dev/null || {
+                    print_color "$YELLOW" "  Failed to install Neon CLI via npm"
+                    echo -e "${GREEN}◆${NC} Try using npx instead? ${DIM}(Y/n)${NC}"
+                    read -p "  " USE_NPX
+                    USE_NPX=${USE_NPX:-y}
+                    if [[ "$USE_NPX" == "y" || "$USE_NPX" == "Y" || "$USE_NPX" == "" ]]; then
+                        NEON_CMD="npx neonctl"
+                    else
+                        DB_CHOICE="2"  # Fall back to manual entry
+                    fi
+                }
+                NEON_CMD=${NEON_CMD:-"neonctl"}
+            else
+                DB_CHOICE="2"  # Fall back to manual entry
+            fi
+        else
+            # Determine which command is available
+            if command -v neonctl &> /dev/null; then
+                NEON_CMD="neonctl"
+            else
+                NEON_CMD="neon"
+            fi
+        fi
+        
+        if [ "$DB_CHOICE" = "1" ]; then
+            # Create Neon project
+            echo -e "${DIM}  ↳ Creating Neon project...${NC}"
+            echo -e "${DIM}  Note: This will open a browser for authentication if needed${NC}"
+            
+            # Try to create project and get output as JSON
+            PROJECT_OUTPUT=$($NEON_CMD projects create --output json 2>/dev/null) || {
+                print_color "$YELLOW" "  Failed to create Neon project"
+                echo "  You may need to:"
+                echo "    1. Run: $NEON_CMD auth"
+                echo "    2. Or set: export NEON_API_KEY=\"your-api-key\""
+                echo ""
+                echo -e "${GREEN}◆${NC} Enter database URL manually instead:"
+                read -p "  " DATABASE_URL
+                DB_CHOICE="manual"
+            }
+            
+            if [ "$DB_CHOICE" = "1" ] && [ ! -z "$PROJECT_OUTPUT" ]; then
+                # Extract connection string from JSON output
+                # Try to parse with jq if available, otherwise use grep/sed
+                if command -v jq &> /dev/null; then
+                    DATABASE_URL=$(echo "$PROJECT_OUTPUT" | jq -r '.connection_uris[0].connection_uri' 2>/dev/null)
+                    PROJECT_ID=$(echo "$PROJECT_OUTPUT" | jq -r '.project.id' 2>/dev/null)
+                else
+                    # Fallback parsing without jq
+                    DATABASE_URL=$(echo "$PROJECT_OUTPUT" | grep -o '"connection_uri":"[^"]*' | head -1 | cut -d'"' -f4)
+                    PROJECT_ID=$(echo "$PROJECT_OUTPUT" | grep -o '"id":"[^"]*' | head -1 | cut -d'"' -f4)
+                fi
+                
+                if [ ! -z "$DATABASE_URL" ]; then
+                    echo -e "${GREEN}  ✓ Neon database created${NC}"
+                    [ ! -z "$PROJECT_ID" ] && echo -e "${DIM}  Project ID: $PROJECT_ID${NC}"
+                    echo -e "${DIM}  ↳ Setting DATABASE_URL secret...${NC}"
+                    fly secrets set DATABASE_URL="$DATABASE_URL" --app "$SERVER_APP"
+                    echo -e "${GREEN}  ✓ Database configured${NC}"
+                else
+                    print_color "$YELLOW" "  Could not extract connection URL"
+                    echo -e "${GREEN}◆${NC} Enter database URL manually:"
+                    read -p "  " DATABASE_URL
+                fi
+            fi
+        fi
+    elif [ "$DB_CHOICE" = "2" ]; then
+        echo ""
+        echo -e "${GREEN}◆${NC} PostgreSQL connection URL:"
+        echo -e "${DIM}  Format: postgresql://user:password@host:port/database${NC}"
+        echo -e "${DIM}  Providers: Neon, Supabase, Railway, or any PostgreSQL service${NC}"
+        read -p "  " DATABASE_URL
+    fi
+    
+    # Set the DATABASE_URL if provided
+    if [ ! -z "$DATABASE_URL" ] && [ "$DB_CHOICE" != "1" ]; then
         echo -e "${DIM}  ↳ Setting DATABASE_URL secret...${NC}"
         fly secrets set DATABASE_URL="$DATABASE_URL" --app "$SERVER_APP"
         echo -e "${GREEN}  ✓ Database configured${NC}"
-    else
+    elif [ -z "$DATABASE_URL" ] && [ "$DB_CHOICE" != "3" ]; then
         print_color "$YELLOW" "  ⚠ Warning: No database URL provided. You'll need to set it later:"
         print_color "$DIM" "  fly secrets set DATABASE_URL=\"postgresql://...\" --app $SERVER_APP"
     fi
@@ -267,11 +365,22 @@ echo -e "${DIM}
    • Status: ${NC}fly status --app $SERVER_APP${DIM}
 ${NC}"
 
-if [ -z "$DATABASE_URL" ] || [ -z "$REDIS_URL" ]; then
+# Check if any secrets still need to be configured
+MISSING_CONFIGS=false
+if ! fly secrets list --app "$SERVER_APP" 2>/dev/null | grep -q "DATABASE_URL"; then
+    MISSING_CONFIGS=true
+    DATABASE_MISSING=true
+fi
+if ! fly secrets list --app "$SERVER_APP" 2>/dev/null | grep -q "REDIS_URL"; then
+    MISSING_CONFIGS=true
+    REDIS_MISSING=true
+fi
+
+if [ "$MISSING_CONFIGS" = true ]; then
     print_color "$YELLOW" "⚠ Important: Missing Configuration"
     echo -e "${DIM}"
-    [ -z "$DATABASE_URL" ] && echo "  • Set DATABASE_URL before deploying"
-    [ -z "$REDIS_URL" ] && echo "  • Set REDIS_URL for job queue functionality"
+    [ "$DATABASE_MISSING" = true ] && echo "  • Set DATABASE_URL before deploying"
+    [ "$REDIS_MISSING" = true ] && echo "  • Set REDIS_URL for job queue functionality"
     echo -e "${NC}"
 fi
 
