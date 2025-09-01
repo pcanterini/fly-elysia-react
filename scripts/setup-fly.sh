@@ -162,44 +162,85 @@ if [[ "$SETUP_DB" == "y" || "$SETUP_DB" == "Y" || "$SETUP_DB" == "" ]]; then
         fi
         
         if [ "$DB_CHOICE" = "1" ]; then
-            # Create Neon project
-            echo -e "${DIM}  ↳ Creating Neon project...${NC}"
-            echo -e "${DIM}  Note: This will open a browser for authentication if needed${NC}"
-            
-            # Try to create project and get output as JSON
-            PROJECT_OUTPUT=$($NEON_CMD projects create --output json 2>/dev/null) || {
-                print_color "$YELLOW" "  Failed to create Neon project"
-                echo "  You may need to:"
-                echo "    1. Run: $NEON_CMD auth"
-                echo "    2. Or set: export NEON_API_KEY=\"your-api-key\""
-                echo ""
-                echo -e "${GREEN}◆${NC} Enter database URL manually instead:"
-                read -p "  " DATABASE_URL
-                DB_CHOICE="manual"
-            }
-            
-            if [ "$DB_CHOICE" = "1" ] && [ ! -z "$PROJECT_OUTPUT" ]; then
-                # Extract connection string from JSON output
-                # Try to parse with jq if available, otherwise use grep/sed
-                if command -v jq &> /dev/null; then
-                    DATABASE_URL=$(echo "$PROJECT_OUTPUT" | jq -r '.connection_uris[0].connection_uri' 2>/dev/null)
-                    PROJECT_ID=$(echo "$PROJECT_OUTPUT" | jq -r '.project.id' 2>/dev/null)
-                else
-                    # Fallback parsing without jq
-                    DATABASE_URL=$(echo "$PROJECT_OUTPUT" | grep -o '"connection_uri":"[^"]*' | head -1 | cut -d'"' -f4)
-                    PROJECT_ID=$(echo "$PROJECT_OUTPUT" | grep -o '"id":"[^"]*' | head -1 | cut -d'"' -f4)
-                fi
+            # Check if user is authenticated with Neon
+            echo -e "${DIM}  ↳ Checking Neon authentication...${NC}"
+            if ! $NEON_CMD auth whoami &>/dev/null; then
+                echo -e "${YELLOW}  Not authenticated with Neon${NC}"
+                echo -e "${DIM}  Opening browser for authentication...${NC}"
+                $NEON_CMD auth
                 
-                if [ ! -z "$DATABASE_URL" ]; then
-                    echo -e "${GREEN}  ✓ Neon database created${NC}"
-                    [ ! -z "$PROJECT_ID" ] && echo -e "${DIM}  Project ID: $PROJECT_ID${NC}"
-                    echo -e "${DIM}  ↳ Setting DATABASE_URL secret...${NC}"
-                    fly secrets set DATABASE_URL="$DATABASE_URL" --app "$SERVER_APP"
-                    echo -e "${GREEN}  ✓ Database configured${NC}"
-                else
-                    print_color "$YELLOW" "  Could not extract connection URL"
-                    echo -e "${GREEN}◆${NC} Enter database URL manually:"
+                # Check again after auth
+                if ! $NEON_CMD auth whoami &>/dev/null; then
+                    print_color "$YELLOW" "  Authentication failed"
+                    echo -e "${GREEN}◆${NC} Enter database URL manually instead:"
                     read -p "  " DATABASE_URL
+                    DB_CHOICE="manual"
+                fi
+            fi
+            
+            if [ "$DB_CHOICE" = "1" ]; then
+                # Create Neon project with name based on app prefix
+                PROJECT_NAME="${APP_PREFIX:-$SERVER_APP}"
+                echo -e "${DIM}  ↳ Creating Neon project: $PROJECT_NAME${NC}"
+                
+                # Create project and get the output (don't suppress stderr for auth prompts)
+                PROJECT_OUTPUT=$($NEON_CMD projects create --name "$PROJECT_NAME" --output json 2>&1)
+                CREATE_STATUS=$?
+                
+                if [ $CREATE_STATUS -ne 0 ]; then
+                    # Check if it's an auth error
+                    if echo "$PROJECT_OUTPUT" | grep -q "not authenticated\|unauthorized\|auth"; then
+                        print_color "$YELLOW" "  Authentication required"
+                        echo -e "${DIM}  Please run: $NEON_CMD auth${NC}"
+                    else
+                        print_color "$YELLOW" "  Failed to create Neon project"
+                        echo -e "${DIM}  Error: $PROJECT_OUTPUT${NC}"
+                    fi
+                    echo ""
+                    echo -e "${GREEN}◆${NC} Enter database URL manually instead:"
+                    read -p "  " DATABASE_URL
+                    DB_CHOICE="manual"
+                else
+                    # Parse the JSON output to get connection details
+                    if command -v jq &> /dev/null; then
+                        # Using jq for proper JSON parsing
+                        PROJECT_ID=$(echo "$PROJECT_OUTPUT" | jq -r '.project.id' 2>/dev/null)
+                        DB_NAME=$(echo "$PROJECT_OUTPUT" | jq -r '.databases[0].name' 2>/dev/null)
+                        BRANCH_ID=$(echo "$PROJECT_OUTPUT" | jq -r '.branch.id' 2>/dev/null)
+                        
+                        # Get connection string
+                        echo -e "${DIM}  ↳ Getting connection string...${NC}"
+                        CONNECTION_OUTPUT=$($NEON_CMD connection-string --project-id "$PROJECT_ID" --output json 2>/dev/null)
+                        DATABASE_URL=$(echo "$CONNECTION_OUTPUT" | jq -r '.connection_uri' 2>/dev/null)
+                        
+                        # If connection-string didn't work, try from project output
+                        if [ -z "$DATABASE_URL" ] || [ "$DATABASE_URL" = "null" ]; then
+                            DATABASE_URL=$(echo "$PROJECT_OUTPUT" | jq -r '.connection_uris[0].connection_uri' 2>/dev/null)
+                        fi
+                    else
+                        # Fallback parsing without jq
+                        PROJECT_ID=$(echo "$PROJECT_OUTPUT" | grep -o '"id":"[^"]*' | head -1 | cut -d'"' -f4)
+                        DATABASE_URL=$(echo "$PROJECT_OUTPUT" | grep -o '"connection_uri":"[^"]*' | head -1 | cut -d'"' -f4 | sed 's/\\//g')
+                    fi
+                    
+                    if [ ! -z "$DATABASE_URL" ] && [ "$DATABASE_URL" != "null" ]; then
+                        echo -e "${GREEN}  ✓ Neon project created: $PROJECT_NAME${NC}"
+                        [ ! -z "$PROJECT_ID" ] && echo -e "${DIM}  Project ID: $PROJECT_ID${NC}"
+                        echo -e "${DIM}  Connection: $DATABASE_URL${NC}"
+                        echo -e "${DIM}  ↳ Setting DATABASE_URL secret...${NC}"
+                        fly secrets set DATABASE_URL="$DATABASE_URL" --app "$SERVER_APP"
+                        echo -e "${GREEN}  ✓ Database configured${NC}"
+                    else
+                        print_color "$YELLOW" "  Project created but could not extract connection URL"
+                        echo -e "${DIM}  You can find your connection string at: https://console.neon.tech${NC}"
+                        echo -e "${GREEN}◆${NC} Enter database URL manually:"
+                        read -p "  " DATABASE_URL
+                        if [ ! -z "$DATABASE_URL" ]; then
+                            echo -e "${DIM}  ↳ Setting DATABASE_URL secret...${NC}"
+                            fly secrets set DATABASE_URL="$DATABASE_URL" --app "$SERVER_APP"
+                            echo -e "${GREEN}  ✓ Database configured${NC}"
+                        fi
+                    fi
                 fi
             fi
         fi
