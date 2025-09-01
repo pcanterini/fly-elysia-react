@@ -341,12 +341,16 @@ if [[ "$SETUP_REDIS" == "y" || "$SETUP_REDIS" == "Y" || "$SETUP_REDIS" == "" ]];
     if [ "$REDIS_CHOICE" = "1" ]; then
         # Check if Redis instance already exists
         REDIS_NAME="${SERVER_APP}-redis"
+        set +e  # Temporarily disable exit on error
         if fly redis list 2>/dev/null | grep -q "$REDIS_NAME"; then
+            set -e  # Re-enable exit on error
             echo -e "${DIM}  ✓ Redis instance already exists: $REDIS_NAME${NC}"
             echo -e "${DIM}  ↳ Getting connection details...${NC}"
             
             # Get the Redis URL using status command
+            set +e  # Temporarily disable exit on error
             REDIS_STATUS=$(fly redis status "$REDIS_NAME" 2>&1)
+            set -e  # Re-enable exit on error
             REDIS_URL=$(echo "$REDIS_STATUS" | grep -o 'redis://[^[:space:]]*' | head -1)
             
             if [ ! -z "$REDIS_URL" ]; then
@@ -364,31 +368,39 @@ if [[ "$SETUP_REDIS" == "y" || "$SETUP_REDIS" == "Y" || "$SETUP_REDIS" == "" ]];
                 fi
             fi
         else
+            set -e  # Re-enable exit on error
             echo -e "${DIM}  ↳ Creating Upstash Redis instance via Fly...${NC}"
+            echo -e "${DIM}  You will be prompted about eviction policy${NC}"
             echo ""
             
-            # Create Upstash Redis via Fly with --no-eviction to avoid interactive prompt
-            REDIS_OUTPUT=$(fly redis create --name "$REDIS_NAME" --no-replicas --no-eviction --region sea 2>&1)
+            # Run Redis creation interactively to allow user to choose eviction
+            # Temporarily disable exit on error for Redis creation
+            set +e
+            fly redis create --name "$REDIS_NAME" --no-replicas --region sea
             REDIS_CREATE_STATUS=$?
+            set -e  # Re-enable exit on error
             
             if [ $REDIS_CREATE_STATUS -eq 0 ]; then
-                # Extract Redis URL from the output
-                # The URL appears after "can connect to Redis at" in the output
-                REDIS_URL=$(echo "$REDIS_OUTPUT" | grep -o 'redis://[^[:space:]]*' | head -1)
+                echo ""
+                echo -e "${GREEN}  ✓ Redis created successfully${NC}"
+                echo -e "${DIM}  Name: ${REDIS_NAME}${NC}"
+                echo -e "${DIM}  Region: sea${NC}"
+                
+                # Get the Redis URL using status command
+                echo -e "${DIM}  ↳ Getting connection details...${NC}"
+                set +e
+                REDIS_STATUS=$(fly redis status "$REDIS_NAME" 2>&1)
+                set -e
+                REDIS_URL=$(echo "$REDIS_STATUS" | grep -o 'redis://[^[:space:]]*' | head -1)
                 
                 if [ ! -z "$REDIS_URL" ]; then
-                    echo -e "${GREEN}  ✓ Redis created successfully${NC}"
-                    echo -e "${DIM}  Name: ${REDIS_NAME}${NC}"
-                    echo -e "${DIM}  Region: sea${NC}"
                     echo -e "${DIM}  ↳ Setting REDIS_URL secret...${NC}"
                     fly secrets set REDIS_URL="$REDIS_URL" --app "$SERVER_APP" &>/dev/null
                     echo -e "${GREEN}  ✓ Redis configured in Fly${NC}"
                 else
-                    # If we couldn't extract the URL, show the output and ask for manual input
-                    echo "$REDIS_OUTPUT"
-                    echo ""
-                    print_color "$YELLOW" "  Redis created but could not extract URL automatically"
-                    echo -e "${GREEN}◆${NC} Enter the Redis URL from above:"
+                    # If we couldn't extract the URL, ask for manual input
+                    print_color "$YELLOW" "  Could not extract URL automatically"
+                    echo -e "${GREEN}◆${NC} Enter the Redis URL (check output above):"
                     read -p "  " REDIS_URL
                     if [ ! -z "$REDIS_URL" ]; then
                         fly secrets set REDIS_URL="$REDIS_URL" --app "$SERVER_APP" &>/dev/null
@@ -396,20 +408,29 @@ if [[ "$SETUP_REDIS" == "y" || "$SETUP_REDIS" == "Y" || "$SETUP_REDIS" == "" ]];
                     fi
                 fi
             else
-                # Check if it's because the Redis instance already exists
-                if echo "$REDIS_OUTPUT" | grep -q "already exists\|is not available"; then
-                    print_color "$YELLOW" "  Redis name '${REDIS_NAME}' already exists"
-                    echo -e "${DIM}  This likely means you've already created this Redis instance${NC}"
-                    echo -e "${GREEN}◆${NC} Try to get existing Redis URL? ${DIM}(Y/n)${NC}"
-                    read -p "  " GET_EXISTING
-                    GET_EXISTING=${GET_EXISTING:-y}
+                # Since we're running interactively, Redis creation failed or was cancelled
+                echo -e "${YELLOW}  Redis creation failed or was cancelled${NC}"
+                echo -e "${DIM}  This might be because:${NC}"
+                echo -e "${DIM}  - The Redis name already exists${NC}"
+                echo -e "${DIM}  - You cancelled the prompt${NC}"
+                echo -e "${DIM}  - There was a connection issue${NC}"
+                echo ""
+                
+                echo -e "${GREEN}◆${NC} Try to get existing Redis URL? ${DIM}(Y/n)${NC}"
+                read -p "  " GET_EXISTING
+                GET_EXISTING=${GET_EXISTING:-y}
+                
+                if [[ "$GET_EXISTING" == "y" || "$GET_EXISTING" == "Y" || "$GET_EXISTING" == "" ]]; then
+                    set +e  # Temporarily disable exit on error
+                    REDIS_STATUS=$(fly redis status "$REDIS_NAME" 2>&1)
+                    STATUS_CODE=$?
+                    set -e  # Re-enable exit on error
                     
-                    if [[ "$GET_EXISTING" == "y" || "$GET_EXISTING" == "Y" || "$GET_EXISTING" == "" ]]; then
-                        REDIS_STATUS=$(fly redis status "$REDIS_NAME" 2>&1)
+                    if [ $STATUS_CODE -eq 0 ]; then
                         REDIS_URL=$(echo "$REDIS_STATUS" | grep -o 'redis://[^[:space:]]*' | head -1)
                         
                         if [ ! -z "$REDIS_URL" ]; then
-                            echo -e "${GREEN}  ✓ Found existing Redis URL${NC}"
+                            echo -e "${GREEN}  ✓ Found existing Redis instance${NC}"
                             echo -e "${DIM}  ↳ Setting REDIS_URL secret...${NC}"
                             fly secrets set REDIS_URL="$REDIS_URL" --app "$SERVER_APP" &>/dev/null
                             echo -e "${GREEN}  ✓ Redis configured${NC}"
@@ -421,53 +442,19 @@ if [[ "$SETUP_REDIS" == "y" || "$SETUP_REDIS" == "Y" || "$SETUP_REDIS" == "" ]];
                                 echo -e "${GREEN}  ✓ Redis configured${NC}"
                             fi
                         fi
-                    fi
-                # Check if it's because Upstash account needs linking
-                elif echo "$REDIS_OUTPUT" | grep -q "link.*Upstash\|Upstash.*account"; then
-                    print_color "$YELLOW" "  You need to link your Upstash account first"
-                    echo -e "${GREEN}◆${NC} Link Upstash account now? ${DIM}(Y/n)${NC}"
-                    read -p "  " LINK_UPSTASH
-                    LINK_UPSTASH=${LINK_UPSTASH:-y}
-                    
-                    if [[ "$LINK_UPSTASH" == "y" || "$LINK_UPSTASH" == "Y" || "$LINK_UPSTASH" == "" ]]; then
-                        echo -e "${DIM}  This will open your browser to link accounts...${NC}"
-                        echo -e "${GREEN}◆${NC} Enable eviction for Redis? ${DIM}(y/N)${NC}"
-                        echo -e "${DIM}  Eviction removes old data when memory is full (useful for caching)${NC}"
-                        read -p "  " ENABLE_EVICTION
-                        ENABLE_EVICTION=${ENABLE_EVICTION:-n}
+                    else
+                        echo -e "${YELLOW}  No existing Redis instance found with name: ${REDIS_NAME}${NC}"
+                        echo -e "${GREEN}◆${NC} Enter Redis URL manually? ${DIM}(y/N)${NC}"
+                        read -p "  " MANUAL_ENTRY
+                        MANUAL_ENTRY=${MANUAL_ENTRY:-n}
                         
-                        # Run the command again interactively with appropriate flag
-                        if [[ "$ENABLE_EVICTION" == "y" || "$ENABLE_EVICTION" == "Y" ]]; then
-                            fly redis create --name "$REDIS_NAME" --no-replicas --enable-eviction --region sea
-                        else
-                            fly redis create --name "$REDIS_NAME" --no-replicas --no-eviction --region sea
-                        fi
-                        echo ""
-                        echo -e "${GREEN}◆${NC} Enter the Redis URL shown above:"
-                        read -p "  " REDIS_URL
-                        if [ ! -z "$REDIS_URL" ]; then
-                            fly secrets set REDIS_URL="$REDIS_URL" --app "$SERVER_APP" &>/dev/null
-                            echo -e "${GREEN}  ✓ Redis configured${NC}"
-                        fi
-                    fi
-                else
-                    # Generic error
-                    log_error "Failed to create Redis instance: $REDIS_OUTPUT"
-                    print_color "$RED" "  ✗ Failed to create Redis instance"
-                    echo -e "${YELLOW}  Error details:${NC}"
-                    echo "$REDIS_OUTPUT" | sed 's/^/    /'
-                    echo ""
-                    echo -e "${DIM}  Full error log saved to: $ERROR_LOG${NC}"
-                    echo -e "${GREEN}◆${NC} Enter Redis URL manually? ${DIM}(y/N)${NC}"
-                    read -p "  " MANUAL_REDIS
-                    MANUAL_REDIS=${MANUAL_REDIS:-n}
-                    
-                    if [[ "$MANUAL_REDIS" == "y" || "$MANUAL_REDIS" == "Y" ]]; then
-                        echo -e "${GREEN}◆${NC} Redis URL:"
-                        read -p "  " REDIS_URL
-                        if [ ! -z "$REDIS_URL" ]; then
-                            fly secrets set REDIS_URL="$REDIS_URL" --app "$SERVER_APP" &>/dev/null
-                            echo -e "${GREEN}  ✓ Redis configured${NC}"
+                        if [[ "$MANUAL_ENTRY" == "y" || "$MANUAL_ENTRY" == "Y" ]]; then
+                            echo -e "${GREEN}◆${NC} Redis URL:"
+                            read -p "  " REDIS_URL
+                            if [ ! -z "$REDIS_URL" ]; then
+                                fly secrets set REDIS_URL="$REDIS_URL" --app "$SERVER_APP" &>/dev/null
+                                echo -e "${GREEN}  ✓ Redis configured${NC}"
+                            fi
                         fi
                     fi
                 fi
