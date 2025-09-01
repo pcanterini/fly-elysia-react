@@ -99,8 +99,8 @@ if [ -f "apps/server/.env.example" ]; then
     # Update database name
     sed -i.bak "s/your_database_name/$DB_NAME/" apps/server/.env
     
-    # Generate auth secret
-    AUTH_SECRET=$(openssl rand -base64 32)
+    # Generate auth secret (use hex to avoid special characters)
+    AUTH_SECRET=$(openssl rand -hex 32)
     sed -i.bak "s/your-secret-key-min-32-chars-change-in-production/$AUTH_SECRET/" apps/server/.env
     
     # Update production URL if Fly.io is used
