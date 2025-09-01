@@ -13,6 +13,10 @@ if (!process.env.DATABASE_URL) {
   throw new Error('DATABASE_URL environment variable is required');
 }
 
+// Derive the cookie domain from BETTER_AUTH_URL or use default
+// For Fly.io deployments, this would be '.fly.dev' to work across subdomains
+const cookieDomain = process.env.COOKIE_DOMAIN || (isProduction ? '.fly.dev' : undefined);
+
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
@@ -34,14 +38,14 @@ export const auth = betterAuth({
     }
   },
   // Cookie configuration at root level
-  // NOTE: better-auth seems to have issues with cookie domain configuration
-  // We explicitly set all cookie attributes for production
+  // NOTE: When deploying to production with custom domains, you may need to update
+  // the COOKIE_DOMAIN environment variable to match your domain (e.g., '.yourdomain.com')
   cookies: isProduction ? {
     secure: true, // Force HTTPS in production
     sameSite: 'none' as const, // Required for cross-origin
     httpOnly: true, // Prevent XSS
     path: '/', // Available on all paths
-    domain: '.fly.dev', // Explicit domain for fly.dev apps
+    ...(cookieDomain ? { domain: cookieDomain } : {}), // Dynamic domain configuration
   } : {
     secure: false,
     sameSite: 'lax' as const,
@@ -63,7 +67,12 @@ export const auth = betterAuth({
   secret: process.env.BETTER_AUTH_SECRET,
   baseURL: process.env.BETTER_AUTH_URL || 'http://localhost:3001',
   trustedOrigins: [
-    'https://bun-app-client.fly.dev',
+    // In production, use CLIENT_URL env var or derive from BETTER_AUTH_URL
+    ...(isProduction && process.env.CLIENT_URL ? [process.env.CLIENT_URL] : []),
+    ...(isProduction && !process.env.CLIENT_URL && process.env.BETTER_AUTH_URL ? [
+      // Derive client URL from server URL (replace -server with -client)
+      process.env.BETTER_AUTH_URL.replace('-server', '-client')
+    ] : []),
     ...(!isProduction ? [
       'http://localhost',        // Docker client on port 80
       'http://localhost:80',     // Docker client on port 80 (explicit)

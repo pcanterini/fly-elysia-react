@@ -200,7 +200,7 @@ CREATE DATABASE your_database_name;
 cd apps/server
 bun run db:generate
 
-# Apply migrations
+# Apply migrations locally
 bun run db:push
 
 # Open database studio
@@ -297,7 +297,24 @@ fly deploy --config fly.client.toml
 fly deploy --config fly.server.toml
 ```
 
-#### Step 5: Verify Deployment
+#### Step 5: Run Database Migrations
+
+The deployment script automatically runs migrations, but you can also run them manually:
+
+```bash
+# Automatic (included in deploy script)
+bun run deploy  # Runs migrations after server deployment
+
+# Manual migration
+fly ssh console --app your-app-server -C "cd /app/apps/server && bun run db:push"
+
+# Alternative: SSH in and run interactively
+fly ssh console --app your-app-server
+cd /app/apps/server
+bun run db:push
+```
+
+#### Step 6: Verify Deployment
 
 ```bash
 # Check server status
@@ -306,12 +323,36 @@ fly status --app your-app-server
 # View logs
 fly logs --app your-app-server
 
+# Test health endpoint
+curl https://your-app-server.fly.dev/api/health
+
 # Open apps
 fly open --app your-app-client
 fly open --app your-app-server
 ```
 
 ## Production Configuration
+
+### Database Migrations
+
+**Important**: Database tables must be created in production before the app can function.
+
+1. **Automatic migrations** (recommended):
+   - The `deploy.sh` script runs migrations automatically after deployment
+   - Uses `db:push` to sync schema with database
+
+2. **Manual migrations**:
+   ```bash
+   # SSH into server and run migrations
+   fly ssh console --app your-app-server
+   cd /app/apps/server
+   bun run db:push
+   ```
+
+3. **Troubleshooting migrations**:
+   - Check logs: `fly logs --app your-app-server`
+   - Verify DATABASE_URL is set: `fly secrets list --app your-app-server`
+   - Test connection: `fly ssh console --app your-app-server -C "cd /app/apps/server && bun run db:studio"`
 
 ### Domain Setup
 
@@ -327,7 +368,31 @@ fly certs create api.yourdomain.com --app your-app-server
 
 3. Update environment variables:
    - `BETTER_AUTH_URL=https://api.yourdomain.com`
-   - `VITE_API_URL=https://api.yourdomain.com`
+   - `CLIENT_URL=https://yourdomain.com` (optional, auto-derived if not set)
+   - `COOKIE_DOMAIN=.yourdomain.com` (for cookie sharing across subdomains)
+
+### Cookie Configuration
+
+When using custom domains or deploying to production, you may need to configure cookies for cross-origin authentication:
+
+1. **For Fly.io default domains** (`.fly.dev`):
+   - Cookies are automatically configured with `domain: .fly.dev`
+   - Works across `your-app-client.fly.dev` and `your-app-server.fly.dev`
+
+2. **For custom domains**:
+   - Set `COOKIE_DOMAIN=.yourdomain.com` in server environment
+   - This allows cookies to work across subdomains (e.g., `app.yourdomain.com` and `api.yourdomain.com`)
+
+3. **Cookie attributes** (automatically configured):
+   - `Secure: true` - HTTPS only in production
+   - `SameSite: none` - Required for cross-origin requests
+   - `HttpOnly: true` - Prevents XSS attacks
+
+4. **Troubleshooting cookies**:
+   - Check browser DevTools > Application > Cookies
+   - Ensure domains match between client and server
+   - Verify HTTPS is enabled for both apps
+   - Check CORS configuration allows credentials
 
 ### Scaling
 
@@ -367,7 +432,7 @@ lsof -i :3001
 kill -9 <PID>
 ```
 
-#### Database Connection Failed
+#### Database Connection Failed (Local)
 ```bash
 # Check PostgreSQL is running
 docker ps
@@ -375,6 +440,18 @@ docker ps
 docker-compose restart
 # Check logs
 docker-compose logs postgres
+```
+
+#### Database Tables Don't Exist (Production)
+```bash
+# Error: relation "user" does not exist
+# Solution: Run migrations
+fly ssh console --app your-app-server -C "cd /app/apps/server && bun run db:push"
+
+# Verify tables were created
+fly ssh console --app your-app-server
+cd /app/apps/server
+bun run db:studio
 ```
 
 #### Build Failures

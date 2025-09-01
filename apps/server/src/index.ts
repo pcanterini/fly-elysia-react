@@ -10,19 +10,30 @@ import { startExampleWorker, stopExampleWorker } from './queue/workers/example.w
 import { initializeQueues } from './queue/lazy-config'
 import type { HealthResponse, CreateJobRequest, JobAction } from '@my-app/shared'
 
+const isProduction = process.env.NODE_ENV === 'production';
+
+// Build allowed origins dynamically
 const allowedOrigins = [
-  'https://bun-app-client.fly.dev',
-  'http://localhost', // For client container on port 80
-  'http://localhost:80', // Alternative format
-  'http://localhost:3000',
-  'http://localhost:5173',
-  'http://localhost:5174',
-  'http://localhost:4173',
-  'http://127.0.0.1',
-  'http://127.0.0.1:5173',
-  'http://127.0.0.1:5174',
-  'http://127.0.0.1:3000',
-  'http://127.0.0.1:4173'
+  // In production, use CLIENT_URL env var or derive from BETTER_AUTH_URL
+  ...(isProduction && process.env.CLIENT_URL ? [process.env.CLIENT_URL] : []),
+  ...(isProduction && !process.env.CLIENT_URL && process.env.BETTER_AUTH_URL ? [
+    // Derive client URL from server URL (replace -server with -client)
+    process.env.BETTER_AUTH_URL.replace('-server', '-client')
+  ] : []),
+  // Development origins
+  ...(!isProduction ? [
+    'http://localhost', // For client container on port 80
+    'http://localhost:80', // Alternative format
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'http://localhost:4173',
+    'http://127.0.0.1',
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:5174',
+    'http://127.0.0.1:3000',
+    'http://127.0.0.1:4173'
+  ] : [])
 ]
 
 const app = new Elysia()

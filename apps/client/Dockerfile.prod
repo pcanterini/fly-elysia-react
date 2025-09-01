@@ -23,9 +23,10 @@ RUN cd /app && bun install
 COPY apps/client ./
 
 # Set build-time environment variable for production
-# ARG is needed for build-time variables with Vite
-ARG VITE_API_URL=https://bun-app-server.fly.dev
-ENV VITE_API_URL=${VITE_API_URL}
+# This will be overridden by fly deploy with the actual server URL
+# The default is just a placeholder
+ARG VITE_API_URL
+ENV VITE_API_URL=${VITE_API_URL:-https://your-app-server.fly.dev}
 
 # Build the app with the correct API URL
 RUN echo "Building with VITE_API_URL=${VITE_API_URL}" && \

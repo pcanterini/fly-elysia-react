@@ -159,12 +159,21 @@ Set these secrets for the server app using `fly secrets set --app YOUR-APP-serve
 - `DATABASE_URL`: PostgreSQL connection string
 - `REDIS_URL`: Redis/Upstash connection string for job queues
 
+### Optional Environment Variables
+- `CLIENT_URL`: Client app URL (auto-derived from BETTER_AUTH_URL if not set)
+- `COOKIE_DOMAIN`: Cookie domain for custom domains (e.g., `.yourdomain.com`)
+  - Defaults to `.fly.dev` for Fly.io deployments
+  - Required when using custom domains
+
 ### Security Considerations
 - **Cross-origin authentication**: Requires proper CORS and cookie configuration
 - **Cookie security**: In production, cookies must have:
   - `Secure` flag for HTTPS-only transmission
   - `SameSite=none` for cross-origin requests
-  - Proper domain (`.fly.dev`) for cross-subdomain access
+  - Proper domain for cross-subdomain access
+- **Cookie domain configuration**:
+  - For Fly.io: Automatically uses `.fly.dev`
+  - For custom domains: Set `COOKIE_DOMAIN` environment variable
 - **Direct API calls**: Client bypasses proxy for auth to avoid cookie domain issues
 
 ## Template Customization Guide

@@ -51,7 +51,7 @@ while [[ "$#" -gt 0 ]]; do
 done
 
 # Build the applications
-print_color "$YELLOW" "🔨 Building applications..."
+print_color "$CYAN" "Building applications..."
 
 if [ "$DEPLOY_CLIENT" = true ]; then
     print_color "$BLUE" "  ↳ Building client..."
@@ -63,48 +63,71 @@ if [ "$DEPLOY_SERVER" = true ]; then
     cd apps/server && bun run build && cd ../..
 fi
 
-print_color "$GREEN" "✅ Build complete!"
+echo -e "${GREEN}✓ Build complete${NC}"
 
 # Deploy to Fly.io
 if [ "$DEPLOY_SERVER" = true ]; then
-    print_color "$YELLOW" "\n🚀 Deploying server to Fly.io..."
+    echo ""
+    print_color "$CYAN" "Deploying server to Fly.io..."
     if fly deploy --config fly.server.toml; then
-        print_color "$GREEN" "✅ Server deployed successfully!"
+        echo -e "${GREEN}✓ Server deployed successfully${NC}"
+        
+        # Run database migrations
+        print_color "$CYAN" "\nRunning database migrations..."
+        SERVER_APP=$(grep "^app = " fly.server.toml | sed "s/app = //g" | tr -d "'\"")
+        
+        # SSH into the server and run migrations
+        echo -e "${DIM}  ↳ Applying database schema...${NC}"
+        if fly ssh console --app "$SERVER_APP" -C "cd /app/apps/server && bun run db:push" 2>/dev/null; then
+            echo -e "${GREEN}  ✓ Database migrations completed${NC}"
+        else
+            echo -e "${YELLOW}  ⚠ Could not run migrations automatically${NC}"
+            echo -e "${DIM}  Run manually with: fly ssh console --app $SERVER_APP -C 'cd /app/apps/server && bun run db:push'${NC}"
+        fi
     else
-        print_color "$RED" "❌ Server deployment failed!"
+        echo -e "${RED}✗ Server deployment failed${NC}"
         exit 1
     fi
 fi
 
 if [ "$DEPLOY_CLIENT" = true ]; then
-    print_color "$YELLOW" "\n🚀 Deploying client to Fly.io..."
-    if fly deploy --config fly.client.toml; then
-        print_color "$GREEN" "✅ Client deployed successfully!"
+    echo ""
+    print_color "$CYAN" "Deploying client to Fly.io..."
+    
+    # Get the server app name from fly.server.toml
+    SERVER_APP=$(grep "^app = " fly.server.toml | sed "s/app = //g" | tr -d "'\"")
+    
+    # Pass the server URL as a build argument
+    if fly deploy --config fly.client.toml --build-arg VITE_API_URL="https://${SERVER_APP}.fly.dev"; then
+        echo -e "${GREEN}✓ Client deployed successfully${NC}"
     else
-        print_color "$RED" "❌ Client deployment failed!"
+        echo -e "${RED}✗ Client deployment failed${NC}"
         exit 1
     fi
 fi
 
 # Print success message
-print_color "$GREEN" "\n🎉 Deployment complete!"
+echo ""
+echo -e "${GREEN}◆ Deployment complete!${NC}"
 
 # Show app URLs
 if [ "$DEPLOY_CLIENT" = true ]; then
     CLIENT_URL=$(fly status --config fly.client.toml --json | grep -o '"Hostname":"[^"]*' | head -1 | cut -d'"' -f4)
     if [ ! -z "$CLIENT_URL" ]; then
-        print_color "$BLUE" "\n📱 Client URL: https://$CLIENT_URL"
+        echo ""
+        echo -e "${CYAN}Client URL:${NC} https://$CLIENT_URL"
     fi
 fi
 
 if [ "$DEPLOY_SERVER" = true ]; then
     SERVER_URL=$(fly status --config fly.server.toml --json | grep -o '"Hostname":"[^"]*' | head -1 | cut -d'"' -f4)
     if [ ! -z "$SERVER_URL" ]; then
-        print_color "$BLUE" "🔧 Server URL: https://$SERVER_URL"
+        echo -e "${CYAN}Server URL:${NC} https://$SERVER_URL"
     fi
 fi
 
-print_color "$YELLOW" "\n📊 View logs:"
+echo ""
+echo -e "${DIM}View logs:${NC}"
 if [ "$DEPLOY_CLIENT" = true ]; then
     echo "  Client: fly logs --config fly.client.toml"
 fi
@@ -112,7 +135,8 @@ if [ "$DEPLOY_SERVER" = true ]; then
     echo "  Server: fly logs --config fly.server.toml"
 fi
 
-print_color "$YELLOW" "\n📈 View status:"
+echo ""
+echo -e "${DIM}View status:${NC}"
 if [ "$DEPLOY_CLIENT" = true ]; then
     echo "  Client: fly status --config fly.client.toml"
 fi
