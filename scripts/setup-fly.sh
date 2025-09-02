@@ -541,7 +541,18 @@ if [[ "$SETUP_AUTH" == "y" || "$SETUP_AUTH" == "Y" || "$SETUP_AUTH" == "" ]]; th
     AUTH_URL="https://${SERVER_APP}.fly.dev"
     fly secrets set BETTER_AUTH_URL="$AUTH_URL" --app "$SERVER_APP" 2>/dev/null
     
+    # Set CLIENT_URL for explicit configuration
+    CLIENT_URL="https://${CLIENT_APP}.fly.dev"
+    fly secrets set CLIENT_URL="$CLIENT_URL" --app "$SERVER_APP" 2>/dev/null
+    
+    # Set COOKIE_DOMAIN for cross-subdomain authentication
+    # This is critical for authentication to work between client and server on Fly.io
+    fly secrets set COOKIE_DOMAIN=".fly.dev" --app "$SERVER_APP" 2>/dev/null
+    
     echo -e "${GREEN}  ✓ Secrets configured${NC}"
+    echo -e "${DIM}     • BETTER_AUTH_URL: $AUTH_URL${NC}"
+    echo -e "${DIM}     • CLIENT_URL: $CLIENT_URL${NC}"
+    echo -e "${DIM}     • COOKIE_DOMAIN: .fly.dev${NC}"
 fi
 
 # List all secrets (without values)
