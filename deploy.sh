@@ -69,12 +69,17 @@ echo -e "${GREEN}✓ Build complete${NC}"
 if [ "$DEPLOY_SERVER" = true ]; then
     echo ""
     print_color "$CYAN" "Deploying server to Fly.io..."
-    if fly deploy --config fly.server.toml; then
+    if fly deploy --config fly.server.toml --ha=false; then
         echo -e "${GREEN}✓ Server deployed successfully${NC}"
+        
+        # Scale to ensure exactly 1 machine per process
+        SERVER_APP=$(grep "^app = " fly.server.toml | sed "s/app = //g" | tr -d "'\"")
+        print_color "$CYAN" "  ↳ Setting correct machine scaling..."
+        fly scale count web=1 worker=1 --app "$SERVER_APP" --yes
+        echo -e "${GREEN}  ✓ Scaled to 1 web + 1 worker machine${NC}"
         
         # Run database migrations
         print_color "$CYAN" "\nRunning database migrations..."
-        SERVER_APP=$(grep "^app = " fly.server.toml | sed "s/app = //g" | tr -d "'\"")
         
         # SSH into the server and run migrations
         echo -e "${DIM}  ↳ Applying database schema...${NC}"
