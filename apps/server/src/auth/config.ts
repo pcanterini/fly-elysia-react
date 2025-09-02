@@ -62,8 +62,11 @@ export const auth = betterAuth({
   // Enhanced security configuration
   advanced: {
     useSecureCookies: isProduction,
-    crossSubDomainCookies: {
-      enabled: isProduction && !!cookieDomain // Enable for production with domain
+    crossSubDomainCookies: isProduction ? {
+      enabled: true,
+      domain: cookieDomain || '.fly.dev' // Must specify domain here for cross-subdomain to work
+    } : {
+      enabled: false
     },
     ipAddress: {
       // Track IP for security (important for rate limiting and suspicious activity)
