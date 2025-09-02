@@ -16,18 +16,36 @@ import type {
 // In production, use the server URL directly
 // In development, use localhost
 const getApiBaseUrl = () => {
-  // Check if we have an explicit environment variable
+  // Check if we have an explicit environment variable (preferred)
   if (import.meta.env.VITE_API_URL) {
     return import.meta.env.VITE_API_URL;
   }
   
   // In production (when deployed), detect based on hostname pattern
-  // This assumes your production URLs follow the pattern: your-app-client.domain.com
-  // Update this logic based on your deployment setup
   if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-    // Replace 'client' with 'server' in the hostname for API URL
-    const serverHostname = window.location.hostname.replace('-client', '-server');
-    return `https://${serverHostname}`;
+    const hostname = window.location.hostname;
+    
+    // Check if it's a Fly.io domain (contains -client and .fly.dev)
+    if (hostname.includes('-client') && hostname.includes('.fly.dev')) {
+      // Replace 'client' with 'server' in the hostname for API URL
+      const serverHostname = hostname.replace('-client', '-server');
+      return `https://${serverHostname}`;
+    }
+    
+    // For custom domains, prepend 'api.' to the domain
+    // Handle both www and non-www domains
+    if (hostname.startsWith('www.')) {
+      // www.yourdomain.com → api.yourdomain.com
+      return `https://api.${hostname.slice(4)}`;
+    } else {
+      // yourdomain.com → api.yourdomain.com
+      // But avoid double api prefix
+      if (!hostname.startsWith('api.')) {
+        return `https://api.${hostname}`;
+      }
+      // If we're already on api subdomain, something is wrong
+      return `https://${hostname}`;
+    }
   }
   
   // Default to localhost for development

@@ -365,6 +365,141 @@ else
     print_color "$DIM" "  fly secrets set DATABASE_URL=\"postgresql://...\" --app $SERVER_APP"
 fi
 
+# Domain Configuration
+echo ""
+print_color "$CYAN" "Domain Configuration"
+echo -e "${GREEN}◆${NC} Configure custom domain? ${DIM}(y/N)${NC}"
+echo -e "${DIM}  Choose 'N' to use default .fly.dev domains${NC}"
+read -p "  " SETUP_DOMAIN
+SETUP_DOMAIN=${SETUP_DOMAIN:-n}
+
+if [[ "$SETUP_DOMAIN" == "y" || "$SETUP_DOMAIN" == "Y" ]]; then
+    echo ""
+    echo -e "${GREEN}◆${NC} Enter your main domain ${DIM}(e.g., yourdomain.com)${NC}"
+    read -p "  " MAIN_DOMAIN
+    
+    if [ ! -z "$MAIN_DOMAIN" ]; then
+        # Remove any protocol prefix if included
+        MAIN_DOMAIN=$(echo "$MAIN_DOMAIN" | sed 's|^https\?://||')
+        
+        echo ""
+        echo -e "${GREEN}◆${NC} Enter API subdomain prefix ${DIM}(api)${NC}"
+        echo -e "${DIM}  This will create: api.$MAIN_DOMAIN${NC}"
+        read -p "  " API_PREFIX
+        API_PREFIX=${API_PREFIX:-api}
+        
+        API_DOMAIN="${API_PREFIX}.${MAIN_DOMAIN}"
+        
+        echo ""
+        print_color "$CYAN" "Custom Domain Configuration:"
+        echo -e "${DIM}  • Main domain: $MAIN_DOMAIN (client)${NC}"
+        echo -e "${DIM}  • API domain: $API_DOMAIN (server)${NC}"
+        
+        # Add SSL certificates
+        echo ""
+        echo -e "${GREEN}◆${NC} Add SSL certificates now? ${DIM}(Y/n)${NC}"
+        read -p "  " ADD_CERTS
+        ADD_CERTS=${ADD_CERTS:-y}
+        
+        if [[ "$ADD_CERTS" == "y" || "$ADD_CERTS" == "Y" || "$ADD_CERTS" == "" ]]; then
+            echo ""
+            print_color "$CYAN" "Adding SSL certificates..."
+            
+            # Add certificate for client domain
+            echo -e "${DIM}  ↳ Adding certificate for $MAIN_DOMAIN...${NC}"
+            if fly certs add "$MAIN_DOMAIN" --app "$CLIENT_APP" 2>&1 | tee -a "$ERROR_LOG"; then
+                echo -e "${GREEN}  ✓ Certificate request created for $MAIN_DOMAIN${NC}"
+            else
+                echo -e "${YELLOW}  ⚠ Certificate may already exist or there was an error${NC}"
+            fi
+            
+            # Add certificate for server domain
+            echo -e "${DIM}  ↳ Adding certificate for $API_DOMAIN...${NC}"
+            if fly certs add "$API_DOMAIN" --app "$SERVER_APP" 2>&1 | tee -a "$ERROR_LOG"; then
+                echo -e "${GREEN}  ✓ Certificate request created for $API_DOMAIN${NC}"
+            else
+                echo -e "${YELLOW}  ⚠ Certificate may already exist or there was an error${NC}"
+            fi
+            
+            # Get DNS records to configure
+            echo ""
+            print_color "$YELLOW" "⚠ IMPORTANT: Configure DNS Records"
+            echo ""
+            print_color "$CYAN" "Add these DNS records at your domain registrar:"
+            echo ""
+            
+            # Get the IP addresses for the main domain
+            echo -e "${YELLOW}For $MAIN_DOMAIN:${NC}"
+            CERT_INFO=$(fly certs show "$MAIN_DOMAIN" --app "$CLIENT_APP" 2>/dev/null || echo "")
+            
+            if echo "$CERT_INFO" | grep -q "DNS Validation Instructions"; then
+                # Extract IPs from the certificate info
+                IPV4=$(echo "$CERT_INFO" | grep -A5 "DNS Validation Instructions" | grep -E "A\s+[0-9.]+" | awk '{print $2}' | head -1)
+                IPV6=$(echo "$CERT_INFO" | grep -A5 "DNS Validation Instructions" | grep -E "AAAA\s+[a-f0-9:]+" | awk '{print $2}' | head -1)
+                
+                if [ ! -z "$IPV4" ]; then
+                    echo -e "${GREEN}  Type: A${NC}"
+                    echo -e "  Name: @ ${DIM}(or leave blank)${NC}"
+                    echo -e "  Value: ${BLUE}$IPV4${NC}"
+                    echo ""
+                fi
+                
+                if [ ! -z "$IPV6" ]; then
+                    echo -e "${GREEN}  Type: AAAA${NC}"
+                    echo -e "  Name: @ ${DIM}(or leave blank)${NC}"
+                    echo -e "  Value: ${BLUE}$IPV6${NC}"
+                    echo ""
+                fi
+            else
+                # Fallback to showing generic Fly.io IPs
+                echo -e "${GREEN}  Type: A${NC}"
+                echo -e "  Name: @ ${DIM}(or leave blank)${NC}"
+                echo -e "  Value: ${BLUE}66.241.124.107${NC} ${DIM}(Fly.io shared IP)${NC}"
+                echo ""
+                echo -e "${GREEN}  Type: AAAA${NC} ${DIM}(optional)${NC}"
+                echo -e "  Name: @ ${DIM}(or leave blank)${NC}"
+                echo -e "  Value: ${BLUE}2a09:8280:1::3:4a5d${NC} ${DIM}(Fly.io shared IPv6)${NC}"
+                echo ""
+            fi
+            
+            echo -e "${YELLOW}For $API_DOMAIN:${NC}"
+            echo -e "${GREEN}  Type: CNAME${NC}"
+            echo -e "  Name: ${API_PREFIX}"
+            echo -e "  Value: ${BLUE}${SERVER_APP}.fly.dev${NC}"
+            echo ""
+            
+            echo -e "${DIM}Note: DNS propagation can take 5-30 minutes${NC}"
+            echo ""
+            
+            # Wait for user confirmation
+            echo -e "${GREEN}◆${NC} Press Enter after configuring DNS records..."
+            read -p "  "
+            
+            # Set environment variables for custom domain
+            echo ""
+            print_color "$CYAN" "Setting environment variables for custom domain..."
+            
+            echo -e "${DIM}  ↳ Setting COOKIE_DOMAIN...${NC}"
+            fly secrets set COOKIE_DOMAIN=".$MAIN_DOMAIN" --app "$SERVER_APP" &>/dev/null
+            
+            echo -e "${DIM}  ↳ Setting CLIENT_URL...${NC}"
+            fly secrets set CLIENT_URL="https://$MAIN_DOMAIN" --app "$SERVER_APP" &>/dev/null
+            
+            echo -e "${DIM}  ↳ Setting BETTER_AUTH_URL...${NC}"
+            fly secrets set BETTER_AUTH_URL="https://$API_DOMAIN" --app "$SERVER_APP" &>/dev/null
+            
+            echo -e "${GREEN}  ✓ Custom domain configuration complete${NC}"
+            
+            # Store domain info for deploy script
+            echo -e "${DIM}  ↳ Saving API URL for client deployment...${NC}"
+            fly secrets set VITE_API_URL="https://$API_DOMAIN" --app "$CLIENT_APP" &>/dev/null
+            echo -e "${GREEN}  ✓ Client will use custom API domain${NC}"
+        fi
+    fi
+else
+    print_color "$DIM" "  Using default .fly.dev domains"
+fi
+
 # Redis setup with Fly Redis option
 echo ""
 print_color "$CYAN" "Redis Setup (Job Queue)"
@@ -537,22 +672,24 @@ if [[ "$SETUP_AUTH" == "y" || "$SETUP_AUTH" == "Y" || "$SETUP_AUTH" == "" ]]; th
     AUTH_SECRET=$(openssl rand -hex 32)
     fly secrets set BETTER_AUTH_SECRET="$AUTH_SECRET" --app "$SERVER_APP" 2>/dev/null
     
-    # Set auth URL
-    AUTH_URL="https://${SERVER_APP}.fly.dev"
-    fly secrets set BETTER_AUTH_URL="$AUTH_URL" --app "$SERVER_APP" 2>/dev/null
-    
-    # Set CLIENT_URL for explicit configuration
-    CLIENT_URL="https://${CLIENT_APP}.fly.dev"
-    fly secrets set CLIENT_URL="$CLIENT_URL" --app "$SERVER_APP" 2>/dev/null
-    
-    # Set COOKIE_DOMAIN for cross-subdomain authentication
-    # This is critical for authentication to work between client and server on Fly.io
-    fly secrets set COOKIE_DOMAIN=".fly.dev" --app "$SERVER_APP" 2>/dev/null
-    
-    echo -e "${GREEN}  ✓ Secrets configured${NC}"
-    echo -e "${DIM}     • BETTER_AUTH_URL: $AUTH_URL${NC}"
-    echo -e "${DIM}     • CLIENT_URL: $CLIENT_URL${NC}"
-    echo -e "${DIM}     • COOKIE_DOMAIN: .fly.dev${NC}"
+    # Only set default URLs if custom domain was not configured
+    if [[ "$SETUP_DOMAIN" != "y" && "$SETUP_DOMAIN" != "Y" ]]; then
+        # Set auth URL
+        AUTH_URL="https://${SERVER_APP}.fly.dev"
+        fly secrets set BETTER_AUTH_URL="$AUTH_URL" --app "$SERVER_APP" 2>/dev/null
+        
+        # Set CLIENT_URL for explicit configuration
+        CLIENT_URL="https://${CLIENT_APP}.fly.dev"
+        fly secrets set CLIENT_URL="$CLIENT_URL" --app "$SERVER_APP" 2>/dev/null
+        
+        echo -e "${GREEN}  ✓ Secrets configured${NC}"
+        echo -e "${DIM}     • BETTER_AUTH_URL: $AUTH_URL${NC}"
+        echo -e "${DIM}     • CLIENT_URL: $CLIENT_URL${NC}"
+        echo -e "${DIM}     • COOKIE_DOMAIN: (not set - using default)${NC}"
+    else
+        echo -e "${GREEN}  ✓ Authentication secret configured${NC}"
+        echo -e "${DIM}     • Using custom domain settings from earlier${NC}"
+    fi
 fi
 
 # List all secrets (without values)
@@ -560,26 +697,34 @@ echo ""
 print_color "$CYAN" "Configured secrets for $SERVER_APP:"
 fly secrets list --app "$SERVER_APP" 2>/dev/null || echo -e "${DIM}  No secrets configured yet${NC}"
 
-# Update client configuration
+# Update client configuration (only for local development, production uses Fly secrets)
 echo ""
-echo -e "${GREEN}◆${NC} Update client with production API URL? ${DIM}(Y/n)${NC}"
+echo -e "${GREEN}◆${NC} Update local client .env with production API URL? ${DIM}(Y/n)${NC}"
+echo -e "${DIM}  This is only for local testing with production API${NC}"
 read -p "  " UPDATE_CLIENT
 UPDATE_CLIENT=${UPDATE_CLIENT:-y}
 
 if [[ "$UPDATE_CLIENT" == "y" || "$UPDATE_CLIENT" == "Y" || "$UPDATE_CLIENT" == "" ]]; then
     if [ -f "apps/client/.env" ]; then
+        # Determine the API URL based on whether custom domain was configured
+        if [[ "$SETUP_DOMAIN" == "y" || "$SETUP_DOMAIN" == "Y" ]] && [ ! -z "$API_DOMAIN" ]; then
+            API_URL="https://$API_DOMAIN"
+        else
+            API_URL="https://${SERVER_APP}.fly.dev"
+        fi
+        
         # Check if VITE_API_URL already exists
         if grep -q "VITE_API_URL=" apps/client/.env; then
             # Update existing
-            sed -i.bak "s|VITE_API_URL=.*|VITE_API_URL=https://${SERVER_APP}.fly.dev|" apps/client/.env
+            sed -i.bak "s|VITE_API_URL=.*|VITE_API_URL=$API_URL|" apps/client/.env
             rm apps/client/.env.bak
         else
             # Add new
             echo "" >> apps/client/.env
             echo "# Production API URL" >> apps/client/.env
-            echo "VITE_API_URL=https://${SERVER_APP}.fly.dev" >> apps/client/.env
+            echo "VITE_API_URL=$API_URL" >> apps/client/.env
         fi
-        echo -e "${GREEN}  ✓ Updated apps/client/.env${NC}"
+        echo -e "${GREEN}  ✓ Updated apps/client/.env with: $API_URL${NC}"
     fi
 fi
 

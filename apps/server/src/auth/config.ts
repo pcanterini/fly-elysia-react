@@ -13,10 +13,10 @@ if (!process.env.DATABASE_URL) {
   throw new Error('DATABASE_URL environment variable is required');
 }
 
-// Derive the cookie domain from BETTER_AUTH_URL or use default
-// For Fly.io deployments, this would be '.fly.dev' to work across subdomains
-// IMPORTANT: This must be set for cross-subdomain authentication to work
-const cookieDomain = process.env.COOKIE_DOMAIN || (isProduction ? '.fly.dev' : undefined);
+// Cookie domain configuration for cross-subdomain authentication
+// Set COOKIE_DOMAIN env var for custom domains (e.g., '.yourdomain.com')
+// Leave undefined to use the request domain (works for single domains)
+const cookieDomain = process.env.COOKIE_DOMAIN || undefined;
 
 // Log the cookie domain for debugging
 if (isProduction) {
@@ -52,7 +52,7 @@ export const auth = betterAuth({
     sameSite: 'none' as const, // Required for cross-origin
     httpOnly: true, // Prevent XSS
     path: '/', // Available on all paths
-    domain: cookieDomain || '.fly.dev', // Always set domain in production for Fly.io
+    domain: cookieDomain, // Use environment variable if set
   } : {
     secure: false,
     sameSite: 'lax' as const,
@@ -64,7 +64,7 @@ export const auth = betterAuth({
     useSecureCookies: isProduction,
     crossSubDomainCookies: isProduction ? {
       enabled: true,
-      domain: cookieDomain || '.fly.dev' // Must specify domain here for cross-subdomain to work
+      domain: cookieDomain // Use environment variable if set
     } : {
       enabled: false
     },
