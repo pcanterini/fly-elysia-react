@@ -100,9 +100,16 @@ if [ "$DEPLOY_CLIENT" = true ]; then
     print_color "$CYAN" "Deploying client to Fly.io..."
     
     # Deploy client without build args - it will detect API URL dynamically
-    if fly deploy --config fly.client.toml; then
+    # Use --ha=false to prevent creating multiple machines for high availability
+    if fly deploy --config fly.client.toml --ha=false; then
         echo -e "${GREEN}✓ Client deployed successfully${NC}"
         echo -e "${DIM}  Client will auto-detect API URL based on hostname${NC}"
+        
+        # Ensure client has exactly 1 machine
+        CLIENT_APP=$(grep "^app = " fly.client.toml | sed "s/app = //g" | tr -d "'\"")
+        echo -e "${DIM}  ↳ Ensuring single machine for client...${NC}"
+        fly scale count 1 --app "$CLIENT_APP" --yes 2>/dev/null
+        echo -e "${GREEN}  ✓ Client scaled to 1 machine${NC}"
     else
         echo -e "${RED}✗ Client deployment failed${NC}"
         exit 1
