@@ -129,6 +129,25 @@ if [ "$DEPLOY_SERVER" = true ]; then
     fi
 fi
 
+# Check if custom domain is configured and remind about DNS
+if [ "$DEPLOY_CLIENT" = true ] || [ "$DEPLOY_SERVER" = true ]; then
+    # Get app names
+    CLIENT_APP=$(grep "^app = " fly.client.toml | sed "s/app = //g" | tr -d "'\"")
+    
+    # Check if custom domain exists
+    if fly certs list --app "$CLIENT_APP" 2>/dev/null | grep -v "Host Name" | grep -q "."; then
+        echo ""
+        echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        echo -e "${YELLOW}Custom domain detected!${NC}"
+        echo -e "${DIM}To verify your DNS records are using the correct IPs:${NC}"
+        echo -e "${CYAN}  ./scripts/get-dns-records.sh${NC}"
+        echo ""
+        echo -e "${DIM}Remember: BOTH IPv4 (A) and IPv6 (AAAA) records are REQUIRED${NC}"
+        echo -e "${DIM}for SSL certificates to work properly.${NC}"
+        echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    fi
+fi
+
 echo ""
 echo -e "${DIM}View logs:${NC}"
 if [ "$DEPLOY_CLIENT" = true ]; then

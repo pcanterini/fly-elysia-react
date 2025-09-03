@@ -425,44 +425,66 @@ if [[ "$SETUP_DOMAIN" == "y" || "$SETUP_DOMAIN" == "Y" ]]; then
             echo ""
             print_color "$YELLOW" "⚠ IMPORTANT: Configure DNS Records"
             echo ""
+            
+            # Wait a moment for IP allocation after certificate creation
+            echo -e "${DIM}  Getting allocated IP addresses...${NC}"
+            sleep 2
+            
             print_color "$CYAN" "Add these DNS records at your domain registrar:"
             echo ""
             
-            # Get the IP addresses for the main domain
+            # Get the actual allocated IPs for the client app
             echo -e "${YELLOW}For $MAIN_DOMAIN:${NC}"
-            CERT_INFO=$(fly certs show "$MAIN_DOMAIN" --app "$CLIENT_APP" 2>/dev/null || echo "")
             
-            # Try to extract IPs from certificate info
+            # Use fly ips list to get the actual allocated IPs
+            CLIENT_IPS=$(fly ips list --app "$CLIENT_APP" 2>/dev/null)
+            
             IPV4=""
             IPV6=""
             
-            if echo "$CERT_INFO" | grep -q "DNS Validation Instructions"; then
-                # Look for IP addresses in the DNS validation section
-                # The format is usually "A    <IP>" or "AAAA    <IP>"
-                IPV4=$(echo "$CERT_INFO" | grep -E "^\s*A\s+[0-9.]+" | awk '{print $2}' | head -1)
-                IPV6=$(echo "$CERT_INFO" | grep -E "^\s*AAAA\s+[a-f0-9:]+" | awk '{print $2}' | head -1)
+            if [ ! -z "$CLIENT_IPS" ]; then
+                # Extract IPv4 address (shared or dedicated)
+                IPV4=$(echo "$CLIENT_IPS" | grep "^v4" | awk '{print $2}' | head -1)
+                # Extract IPv6 address (dedicated)
+                IPV6=$(echo "$CLIENT_IPS" | grep "^v6" | awk '{print $2}' | head -1)
+                
+                # Show what we found
+                if [ ! -z "$IPV4" ] && [[ "$IPV4" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+                    echo -e "${GREEN}  ✓ Found allocated IPv4: $IPV4${NC}"
+                fi
+                if [ ! -z "$IPV6" ] && [[ "$IPV6" =~ ^[a-f0-9:]+$ ]]; then
+                    echo -e "${GREEN}  ✓ Found allocated IPv6: $IPV6${NC}"
+                fi
+            else
+                echo -e "${YELLOW}  ⚠ Could not get IPs (app may need to be deployed first)${NC}"
             fi
             
-            # If we couldn't extract IPs or they look wrong, use Fly.io shared IPs
+            # Fallback if we couldn't get IPs
             if [ -z "$IPV4" ] || [[ ! "$IPV4" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
                 IPV4="66.241.124.107"
-                echo -e "${DIM}  Using Fly.io shared IPv4 address${NC}"
+                echo -e "${YELLOW}  ⚠ Using generic IPv4 - update after deployment!${NC}"
+                echo -e "${DIM}     Run './scripts/get-dns-records.sh' after deployment for actual IPs${NC}"
             fi
             
             if [ -z "$IPV6" ] || [[ ! "$IPV6" =~ ^[a-f0-9:]+$ ]]; then
                 IPV6="2a09:8280:1::3:4a5d"
-                echo -e "${DIM}  Using Fly.io shared IPv6 address${NC}"
+                echo -e "${YELLOW}  ⚠ Using generic IPv6 - update after deployment!${NC}"
+                echo -e "${DIM}     Run './scripts/get-dns-records.sh' after deployment for actual IPs${NC}"
             fi
             
+            echo ""
             # Display the DNS records to add
-            echo -e "${GREEN}  Type: A${NC}"
+            echo -e "${GREEN}  Type: A${NC} ${DIM}(IPv4)${NC}"
             echo -e "  Name: @ ${DIM}(or leave blank)${NC}"
             echo -e "  Value: ${BLUE}$IPV4${NC}"
             echo ""
             
-            echo -e "${GREEN}  Type: AAAA${NC} ${DIM}(optional)${NC}"
+            echo -e "${GREEN}  Type: AAAA${NC} ${RED}(REQUIRED for certificate validation)${NC}"
             echo -e "  Name: @ ${DIM}(or leave blank)${NC}"
             echo -e "  Value: ${BLUE}$IPV6${NC}"
+            echo ""
+            
+            echo -e "${YELLOW}  ⚠ BOTH A and AAAA records are REQUIRED for SSL certificates to work!${NC}"
             echo ""
             
             echo -e "${YELLOW}For $API_DOMAIN:${NC}"
@@ -472,6 +494,13 @@ if [[ "$SETUP_DOMAIN" == "y" || "$SETUP_DOMAIN" == "Y" ]]; then
             echo ""
             
             echo -e "${DIM}Note: DNS propagation can take 5-30 minutes${NC}"
+            echo ""
+            
+            echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+            echo -e "${YELLOW}⚠ IMPORTANT: IP addresses shown above may be provisional${NC}"
+            echo -e "${DIM}After your first deployment, run this command to verify actual IPs:${NC}"
+            echo -e "${CYAN}  ./scripts/get-dns-records.sh${NC}"
+            echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
             echo ""
             
             # Wait for user confirmation

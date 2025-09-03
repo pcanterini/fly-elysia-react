@@ -61,17 +61,23 @@ fly secrets set \
 
 #### Step 2: Configure DNS
 
-Add these DNS records at your domain provider:
+**IMPORTANT**: Both IPv4 (A) and IPv6 (AAAA) records are REQUIRED for SSL certificates to work!
 
-For the main domain:
-- Type: A
-- Name: @ (or blank)
-- Value: 66.241.124.107 (Fly.io shared IP)
+For the main domain, add BOTH records:
+- Type: A (IPv4 - Required)
+  - Name: @ (or blank)
+  - Value: Run `fly ips list --app your-app-client` to get your actual IPv4
+  
+- Type: AAAA (IPv6 - REQUIRED for certificate validation)
+  - Name: @ (or blank)  
+  - Value: Run `fly ips list --app your-app-client` to get your actual IPv6
 
 For the API subdomain:
 - Type: CNAME
 - Name: api
 - Value: your-app-server.fly.dev
+
+**Note**: The certificate will stay in "Awaiting configuration" status until BOTH A and AAAA records are added. Fly.io allocates a dedicated IPv6 address when you add a certificate, and this IPv6 record is mandatory for validation.
 
 #### Step 3: Add SSL Certificates
 
@@ -151,11 +157,20 @@ This ensures exactly 1 web machine, 1 worker machine for the server, and 1 machi
 
 ### Issue: Wrong certificate IPs shown during setup
 
-The setup script now uses Fly.io's standard shared IPs:
-- IPv4: 66.241.124.107
-- IPv6: 2a09:8280:1::3:4a5d
+When you add certificates, Fly.io allocates IP addresses that may not be immediately available. To get the correct IPs:
 
-These work for most Fly.io deployments. If you have dedicated IPs, update them in your DNS settings after running the setup.
+1. **During setup**: The script will try to get IPs using `fly ips list`, but they may not be allocated yet
+2. **After deployment**: Run the helper script to get actual IPs:
+   ```bash
+   ./scripts/get-dns-records.sh
+   ```
+3. **Manual check**: You can always check your IPs directly:
+   ```bash
+   fly ips list --app your-app-client
+   fly ips list --app your-app-server
+   ```
+
+**Important**: You need BOTH IPv4 and IPv6 records. The IPv6 (AAAA) record is REQUIRED for certificate validation to proceed.
 
 ## Security Considerations
 
