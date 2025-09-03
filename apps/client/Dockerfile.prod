@@ -22,15 +22,10 @@ RUN cd /app && bun install
 # Copy client source
 COPY apps/client ./
 
-# Set build-time environment variable for production
-# This will be overridden by fly deploy with the actual server URL
-# The default is just a placeholder
-ARG VITE_API_URL
-ENV VITE_API_URL=${VITE_API_URL:-https://your-app-server.fly.dev}
-
-# Build the app with the correct API URL
-RUN echo "Building with VITE_API_URL=${VITE_API_URL}" && \
-    VITE_API_URL=${VITE_API_URL} bun run build
+# Build the app without hardcoding API URL
+# The client will detect it dynamically based on hostname
+RUN echo "Building client with dynamic API URL detection" && \
+    bun run build
 
 # Production stage with Caddy
 FROM caddy:2-alpine

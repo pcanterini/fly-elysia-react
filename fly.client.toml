@@ -8,6 +8,7 @@ primary_region = 'sea'
 
 [build]
   dockerfile = "apps/client/Dockerfile.prod"
+  # Client detects API URL dynamically - no build args needed
 
 [env]
   NODE_ENV = "production"

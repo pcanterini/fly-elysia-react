@@ -99,44 +99,13 @@ if [ "$DEPLOY_CLIENT" = true ]; then
     echo ""
     print_color "$CYAN" "Deploying client to Fly.io..."
     
-    # Get the app names from fly.toml files
-    SERVER_APP=$(grep "^app = " fly.server.toml | sed "s/app = //g" | tr -d "'\"")
-    CLIENT_APP=$(grep "^app = " fly.client.toml | sed "s/app = //g" | tr -d "'\"")
-    
-    # Check if custom domain is configured via VITE_API_URL secret
-    echo -e "${DIM}  ↳ Checking for custom domain configuration...${NC}"
-    CUSTOM_API_URL=""
-    
-    # Try to get VITE_API_URL from Fly secrets (set during setup if custom domain was configured)
-    if fly secrets list --app "$CLIENT_APP" 2>/dev/null | grep -q "VITE_API_URL"; then
-        # Extract the value (note: actual value is not shown in list, just that it exists)
-        # Since we can't get the actual value, we'll check server's BETTER_AUTH_URL instead
-        if fly ssh console --app "$SERVER_APP" -C "echo \$BETTER_AUTH_URL" 2>/dev/null | grep -v ".fly.dev" | grep -q "https://"; then
-            # Custom domain is configured, get it from server
-            CUSTOM_API_URL=$(fly ssh console --app "$SERVER_APP" -C "echo \$BETTER_AUTH_URL" 2>/dev/null | grep "https://" | tr -d '\r\n')
-            if [ ! -z "$CUSTOM_API_URL" ]; then
-                echo -e "${GREEN}  ✓ Using custom API domain: $CUSTOM_API_URL${NC}"
-            fi
-        fi
-    fi
-    
-    # Use custom API URL if available, otherwise default to .fly.dev
-    if [ ! -z "$CUSTOM_API_URL" ]; then
-        # Deploy with custom API URL
-        if fly deploy --config fly.client.toml --build-arg VITE_API_URL="$CUSTOM_API_URL"; then
-            echo -e "${GREEN}✓ Client deployed successfully with custom domain${NC}"
-        else
-            echo -e "${RED}✗ Client deployment failed${NC}"
-            exit 1
-        fi
+    # Deploy client without build args - it will detect API URL dynamically
+    if fly deploy --config fly.client.toml; then
+        echo -e "${GREEN}✓ Client deployed successfully${NC}"
+        echo -e "${DIM}  Client will auto-detect API URL based on hostname${NC}"
     else
-        # Deploy with default .fly.dev URL
-        if fly deploy --config fly.client.toml --build-arg VITE_API_URL="https://${SERVER_APP}.fly.dev"; then
-            echo -e "${GREEN}✓ Client deployed successfully${NC}"
-        else
-            echo -e "${RED}✗ Client deployment failed${NC}"
-            exit 1
-        fi
+        echo -e "${RED}✗ Client deployment failed${NC}"
+        exit 1
     fi
 fi
 

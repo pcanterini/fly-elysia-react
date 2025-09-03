@@ -432,35 +432,38 @@ if [[ "$SETUP_DOMAIN" == "y" || "$SETUP_DOMAIN" == "Y" ]]; then
             echo -e "${YELLOW}For $MAIN_DOMAIN:${NC}"
             CERT_INFO=$(fly certs show "$MAIN_DOMAIN" --app "$CLIENT_APP" 2>/dev/null || echo "")
             
+            # Try to extract IPs from certificate info
+            IPV4=""
+            IPV6=""
+            
             if echo "$CERT_INFO" | grep -q "DNS Validation Instructions"; then
-                # Extract IPs from the certificate info
-                IPV4=$(echo "$CERT_INFO" | grep -A5 "DNS Validation Instructions" | grep -E "A\s+[0-9.]+" | awk '{print $2}' | head -1)
-                IPV6=$(echo "$CERT_INFO" | grep -A5 "DNS Validation Instructions" | grep -E "AAAA\s+[a-f0-9:]+" | awk '{print $2}' | head -1)
-                
-                if [ ! -z "$IPV4" ]; then
-                    echo -e "${GREEN}  Type: A${NC}"
-                    echo -e "  Name: @ ${DIM}(or leave blank)${NC}"
-                    echo -e "  Value: ${BLUE}$IPV4${NC}"
-                    echo ""
-                fi
-                
-                if [ ! -z "$IPV6" ]; then
-                    echo -e "${GREEN}  Type: AAAA${NC}"
-                    echo -e "  Name: @ ${DIM}(or leave blank)${NC}"
-                    echo -e "  Value: ${BLUE}$IPV6${NC}"
-                    echo ""
-                fi
-            else
-                # Fallback to showing generic Fly.io IPs
-                echo -e "${GREEN}  Type: A${NC}"
-                echo -e "  Name: @ ${DIM}(or leave blank)${NC}"
-                echo -e "  Value: ${BLUE}66.241.124.107${NC} ${DIM}(Fly.io shared IP)${NC}"
-                echo ""
-                echo -e "${GREEN}  Type: AAAA${NC} ${DIM}(optional)${NC}"
-                echo -e "  Name: @ ${DIM}(or leave blank)${NC}"
-                echo -e "  Value: ${BLUE}2a09:8280:1::3:4a5d${NC} ${DIM}(Fly.io shared IPv6)${NC}"
-                echo ""
+                # Look for IP addresses in the DNS validation section
+                # The format is usually "A    <IP>" or "AAAA    <IP>"
+                IPV4=$(echo "$CERT_INFO" | grep -E "^\s*A\s+[0-9.]+" | awk '{print $2}' | head -1)
+                IPV6=$(echo "$CERT_INFO" | grep -E "^\s*AAAA\s+[a-f0-9:]+" | awk '{print $2}' | head -1)
             fi
+            
+            # If we couldn't extract IPs or they look wrong, use Fly.io shared IPs
+            if [ -z "$IPV4" ] || [[ ! "$IPV4" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+                IPV4="66.241.124.107"
+                echo -e "${DIM}  Using Fly.io shared IPv4 address${NC}"
+            fi
+            
+            if [ -z "$IPV6" ] || [[ ! "$IPV6" =~ ^[a-f0-9:]+$ ]]; then
+                IPV6="2a09:8280:1::3:4a5d"
+                echo -e "${DIM}  Using Fly.io shared IPv6 address${NC}"
+            fi
+            
+            # Display the DNS records to add
+            echo -e "${GREEN}  Type: A${NC}"
+            echo -e "  Name: @ ${DIM}(or leave blank)${NC}"
+            echo -e "  Value: ${BLUE}$IPV4${NC}"
+            echo ""
+            
+            echo -e "${GREEN}  Type: AAAA${NC} ${DIM}(optional)${NC}"
+            echo -e "  Name: @ ${DIM}(or leave blank)${NC}"
+            echo -e "  Value: ${BLUE}$IPV6${NC}"
+            echo ""
             
             echo -e "${YELLOW}For $API_DOMAIN:${NC}"
             echo -e "${GREEN}  Type: CNAME${NC}"

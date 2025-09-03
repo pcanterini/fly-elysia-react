@@ -1,107 +1,192 @@
-# Cross-Origin Cookie Configuration Fix
+# Authentication Cookie Configuration Guide
 
-## The Problem
-Authentication cookies were not persisting in production when the client (`bun-app-client.fly.dev`) and server (`bun-app-server.fly.dev`) were on different subdomains. The cookies were being set with `SameSite=Lax` which prevents cross-origin requests from including them.
+## Overview
 
-## The Solution
+This guide explains how the authentication system works in this template and how to configure it for both Fly.io deployments and custom domains.
 
-### 1. Set NODE_ENV at Build Time
-In `apps/server/Dockerfile`, we set `ENV NODE_ENV=production` before the build step. This is critical because Bun evaluates environment variables during bundling and hardcodes the values.
+## How Authentication Works
 
-```dockerfile
-# Set NODE_ENV for the build phase
-# This is critical for Bun to evaluate production conditions at build time
-ENV NODE_ENV=production
+The template uses better-auth for authentication with cookie-based sessions. The key components are:
 
-# Build the server
-RUN cd apps/server && bun run build
-```
+1. **Server Configuration** (`apps/server/src/auth/config.ts`): Handles cookie settings and session management
+2. **Client Configuration** (`apps/client/src/lib/auth.ts`): Manages authentication on the frontend
+3. **Dynamic API Detection** (`apps/client/src/lib/api.ts`): Automatically determines the API URL based on hostname
 
-### 2. Configure betterAuth Cookies Properly
-In `apps/server/src/auth/config.ts`, we use the `advanced.cookies` API to configure cookie attributes:
+## Default Configuration (Works Out of the Box)
 
-```typescript
-const isProduction = process.env.NODE_ENV === 'production';
+The template is pre-configured to work correctly with:
+- Local development (localhost)
+- Fly.io deployments (*.fly.dev domains)
+- Custom domains (with proper environment variables)
 
-export const auth = betterAuth({
-  // ... other config
-  advanced: {
-    useSecureCookies: isProduction,
-    cookies: {
-      session_token: {
-        name: "better-auth.session_token",
-        attributes: {
-          httpOnly: true,
-          // Cross-origin cookies require SameSite=None and Secure=true
-          sameSite: isProduction ? 'none' as const : 'lax' as const,
-          secure: isProduction,
-          path: '/',
-        }
-      }
-    }
-  }
-});
-```
+### Key Features:
+- **No build-time API URL needed**: The client automatically detects the API URL at runtime
+- **Proper cookie configuration**: Sessions and cookies are properly configured in the auth setup
+- **Cross-subdomain support**: Cookies work across subdomains when configured correctly
 
-### 3. Include Credentials in Client Requests
-Ensure all fetch requests from the client include credentials:
+## Deployment Scenarios
 
-```typescript
-fetch(url, {
-  credentials: 'include'
-})
-```
+### 1. Fly.io Default Domains
 
-## Why This Works
+When deploying to Fly.io with default domains:
+- Client: `your-app-client.fly.dev`
+- Server: `your-app-server.fly.dev`
 
-1. **Build-time Evaluation**: Setting `NODE_ENV=production` in the Dockerfile ensures Bun evaluates `process.env.NODE_ENV === 'production'` to `true` during bundling, hardcoding the production settings.
+No additional configuration needed! The client will automatically detect and use the correct server URL.
 
-2. **Cross-Origin Cookies**: For cookies to work across different origins:
-   - `SameSite` must be set to `'none'` 
-   - `Secure` must be `true`
-   - The connection must use HTTPS
-
-3. **betterAuth API**: The `advanced.cookies.session_token.attributes` is the correct way to configure cookie attributes in betterAuth.
-
-## Local Development Setup
-
-For local Docker development, we use a separate `Dockerfile.dev` that builds without setting `NODE_ENV`. This ensures the development configuration is used:
-
-### Dockerfile.dev
-```dockerfile
-# Build the server without NODE_ENV set
-# Bun will default to development mode when NODE_ENV is not set
-RUN cd apps/server && bun run build
-```
-
-This results in:
-- `isProduction = false`
-- Cookies set with `SameSite=Lax` (works on localhost)
-- `Secure=false` (allows HTTP in development)
-
-## Testing
-
-### Local Development
 ```bash
-# Start the full stack locally
-docker-compose up -d
+# Deploy both apps
+bun run deploy
 
-# Test authentication from Docker client origin
-curl -X POST http://localhost:3001/api/auth/sign-in/email \
-  -H "Content-Type: application/json" \
-  -H "Origin: http://localhost" \
-  -d '{"email":"test@example.com","password":"password123"}'
+# Or deploy individually
+fly deploy --config fly.server.toml
+fly deploy --config fly.client.toml
 ```
 
-### Local Production Build
+### 2. Custom Domains
+
+For custom domains (e.g., `yourdomain.com` and `api.yourdomain.com`):
+
+#### Step 1: Set Environment Variables on Server
+
 ```bash
-docker build -f apps/server/Dockerfile -t test-server .
-docker run --rm test-server cat dist/index.js | grep "var isProduction3"
-# Should output: var isProduction3 = true;
+fly secrets set \
+  BETTER_AUTH_URL=https://api.yourdomain.com \
+  CLIENT_URL=https://yourdomain.com \
+  COOKIE_DOMAIN=.yourdomain.com \
+  --app your-app-server
 ```
 
-### Verify in Production
+**Important**: The `COOKIE_DOMAIN` must start with a dot (`.`) to enable cross-subdomain cookie sharing.
+
+#### Step 2: Configure DNS
+
+Add these DNS records at your domain provider:
+
+For the main domain:
+- Type: A
+- Name: @ (or blank)
+- Value: 66.241.124.107 (Fly.io shared IP)
+
+For the API subdomain:
+- Type: CNAME
+- Name: api
+- Value: your-app-server.fly.dev
+
+#### Step 3: Add SSL Certificates
+
 ```bash
-curl https://bun-app-server.fly.dev/api/health
-# Should show NODE_ENV: "production"
+fly certs add yourdomain.com --app your-app-client
+fly certs add api.yourdomain.com --app your-app-server
 ```
+
+#### Step 4: Deploy
+
+```bash
+bun run deploy
+```
+
+The client will automatically detect it's running on a custom domain and construct the API URL accordingly.
+
+## How the Dynamic API Detection Works
+
+The client uses smart detection logic in `apps/client/src/lib/api.ts`:
+
+1. **Development**: Uses `http://localhost:3001`
+2. **Fly.io domains**: Converts `*-client.fly.dev` to `*-server.fly.dev`
+3. **Custom domains**: Prepends `api.` to the domain
+4. **Environment override**: Respects `VITE_API_URL` if explicitly set
+
+This means you don't need to rebuild the client with different API URLs for different environments!
+
+## Cookie Configuration Details
+
+The authentication system uses these cookie settings:
+
+### Production:
+- **Secure**: true (HTTPS only)
+- **HttpOnly**: true (prevents XSS)
+- **SameSite**: 'none' (allows cross-origin)
+- **Domain**: Set via `COOKIE_DOMAIN` env var
+- **Path**: '/' (available on all paths)
+
+### Development:
+- **Secure**: false (allows HTTP)
+- **HttpOnly**: true
+- **SameSite**: 'lax'
+- **Domain**: Not set (uses current domain)
+
+## Troubleshooting
+
+### Issue: Authentication not persisting
+
+**Check cookie settings in browser DevTools:**
+1. Open Application → Cookies
+2. Verify cookies are set with correct domain
+3. For custom domains, domain should be `.yourdomain.com`
+
+**Solution:**
+```bash
+fly secrets set COOKIE_DOMAIN=.yourdomain.com --app your-app-server
+fly apps restart your-app-server
+```
+
+### Issue: CORS errors
+
+**Solution:**
+```bash
+fly secrets set CLIENT_URL=https://yourdomain.com --app your-app-server
+fly apps restart your-app-server
+```
+
+### Issue: Duplicate Fly.io machines
+
+After deployment, if you see duplicate machines:
+
+```bash
+./scripts/fly-scale.sh
+```
+
+This ensures exactly 1 web machine, 1 worker machine for the server, and 1 machine for the client.
+
+### Issue: Wrong certificate IPs shown during setup
+
+The setup script now uses Fly.io's standard shared IPs:
+- IPv4: 66.241.124.107
+- IPv6: 2a09:8280:1::3:4a5d
+
+These work for most Fly.io deployments. If you have dedicated IPs, update them in your DNS settings after running the setup.
+
+## Security Considerations
+
+1. **Always use HTTPS in production**: Cookies with `Secure=true` only work over HTTPS
+2. **Set proper CORS origins**: The server automatically includes `CLIENT_URL` in trusted origins
+3. **Use environment variables**: Never hardcode sensitive URLs or secrets
+4. **Cookie domain scope**: Use the narrowest domain scope possible (e.g., `.yourdomain.com` not `.com`)
+
+## Environment Variables Reference
+
+### Required for Production:
+- `DATABASE_URL`: PostgreSQL connection string
+- `BETTER_AUTH_SECRET`: Random secret for authentication
+- `BETTER_AUTH_URL`: Full URL of your API
+
+### Required for Custom Domains:
+- `CLIENT_URL`: Frontend URL (e.g., `https://yourdomain.com`)
+- `COOKIE_DOMAIN`: Cookie domain with leading dot (e.g., `.yourdomain.com`)
+
+### Optional:
+- `REDIS_URL`: For job queue functionality
+- `NODE_ENV`: Set to 'production' (automatically set by Fly.io)
+
+## Summary
+
+The template's authentication system is designed to work seamlessly across different deployment scenarios:
+
+1. **Zero configuration needed for Fly.io deployments**
+2. **Simple environment variables for custom domains**
+3. **Automatic API URL detection eliminates build-time configuration**
+4. **Proper cookie settings for cross-subdomain authentication**
+5. **Built-in security best practices**
+
+Just deploy and it works!
