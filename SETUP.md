@@ -356,20 +356,62 @@ fly open --app your-app-server
 
 ### Domain Setup
 
-1. Add custom domains:
+#### Important: IPv6 is REQUIRED for SSL Certificates
+
+Fly.io requires BOTH IPv4 (A) and IPv6 (AAAA) DNS records for SSL certificate validation to work properly.
+
+1. **Add custom domains:**
 ```bash
-fly certs create yourdomain.com --app your-app-client
-fly certs create api.yourdomain.com --app your-app-server
+fly certs add yourdomain.com --app your-app-client
+fly certs add api.yourdomain.com --app your-app-server
 ```
 
-2. Update DNS records:
-   - Point `yourdomain.com` to client app IP
-   - Point `api.yourdomain.com` to server app IP
+2. **Get the correct IP addresses:**
+```bash
+# After adding certificates, get actual allocated IPs
+fly ips list --app your-app-client
 
-3. Update environment variables:
-   - `BETTER_AUTH_URL=https://api.yourdomain.com`
-   - `CLIENT_URL=https://yourdomain.com` (optional, auto-derived if not set)
-   - `COOKIE_DOMAIN=.yourdomain.com` (for cookie sharing across subdomains)
+# Or use the helper script after deployment
+./scripts/get-dns-records.sh
+```
+
+3. **Configure DNS records:**
+
+For the main domain (yourdomain.com):
+- **Type: A** (IPv4 - Required)
+  - Name: @ (or leave blank)
+  - Value: Get from `fly ips list` (e.g., 66.241.124.229)
+  
+- **Type: AAAA** (IPv6 - REQUIRED for certificate validation)
+  - Name: @ (or leave blank)
+  - Value: Get from `fly ips list` (e.g., 2a09:8280:1::96:ccbf:0)
+
+For the API subdomain (api.yourdomain.com):
+- **Type: CNAME**
+  - Name: api
+  - Value: your-app-server.fly.dev
+
+**Note**: The certificate will remain in "Awaiting configuration" status until BOTH A and AAAA records are added.
+
+4. **Set environment variables:**
+```bash
+fly secrets set --app your-app-server \
+  BETTER_AUTH_URL=https://api.yourdomain.com \
+  CLIENT_URL=https://yourdomain.com \
+  COOKIE_DOMAIN=.yourdomain.com
+```
+
+5. **Verify certificate status:**
+```bash
+# Check certificate status
+fly certs list --app your-app-client
+fly certs list --app your-app-server
+
+# Status progression:
+# "Awaiting configuration" → Need to add DNS records
+# "Awaiting certificates" → DNS configured, SSL being issued
+# "Ready" → Certificate active
+```
 
 ### Cookie Configuration
 
@@ -487,6 +529,50 @@ LOG_LEVEL=debug
 # Client
 VITE_DEBUG=true
 ```
+
+## Utility Scripts
+
+### setup-fly.sh
+Interactive script that guides you through the entire Fly.io setup process:
+- Creates Fly.io apps with proper naming
+- Sets up PostgreSQL (Neon, external, or Fly Postgres)
+- Configures Redis for job queues
+- Sets up custom domains and SSL certificates
+- Configures all required environment variables
+- Shows DNS records to configure (attempts to get actual IPs)
+
+### get-dns-records.sh
+Helper script to get the correct DNS records after deployment:
+- Retrieves actual allocated IP addresses from Fly.io
+- Shows exact DNS records to configure
+- Displays certificate status
+- Reminds about IPv6 requirement
+
+Usage:
+```bash
+# Run after deployment to get correct IPs
+./scripts/get-dns-records.sh
+```
+
+### fly-scale.sh
+Ensures correct machine count for your apps:
+- Scales client to exactly 1 machine
+- Scales server to 1 web + 1 worker machine
+- Fixes duplicate machine issues
+
+Usage:
+```bash
+# Run after deployment if you see duplicate machines
+./scripts/fly-scale.sh
+```
+
+### init.sh
+Initializes a new project from the template:
+- Prompts for project name
+- Updates package.json with your project name
+- Installs dependencies
+- Sets up environment files
+- Configures git repository
 
 ## Advanced Configuration
 

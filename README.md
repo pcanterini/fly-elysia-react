@@ -22,6 +22,7 @@ A production-ready full-stack template with React, Elysia (Bun), PostgreSQL, and
 
 ## 🚀 Quick Start
 
+### Local Development
 ```bash
 # Clone and initialize
 git clone https://github.com/yourusername/this-template.git my-app
@@ -34,6 +35,18 @@ bun run dev
 # Open in browser
 # Frontend: http://localhost:5173
 # Backend: http://localhost:3001
+```
+
+### Deploy to Production
+```bash
+# 1. Setup Fly.io (interactive script)
+./scripts/setup-fly.sh
+
+# 2. Deploy
+bun run deploy
+
+# 3. Get DNS records (for custom domains)
+./scripts/get-dns-records.sh
 ```
 
 ## 📁 Project Structure
@@ -133,15 +146,19 @@ bun run dev           # Start all services
 bun run dev:client    # Start frontend only
 bun run dev:server    # Start backend only
 bun run dev:clean     # Clean start (kills orphaned processes)
+bun run dev:check     # Check for port conflicts
 
 # Docker
 bun run docker:dev    # Start with Docker (development)
 bun run docker:prod   # Start with Docker (production)
+bun run docker:dev:down  # Stop Docker development
+bun run containers:stop  # Stop all Redis/PostgreSQL containers
 
 # Database
 bun run db:studio     # Open Drizzle Studio
 bun run db:push       # Push schema changes
 bun run db:generate   # Generate migrations
+bun run db:migrate    # Run migrations (production)
 
 # Code Quality
 bun run lint          # Run ESLint
@@ -156,6 +173,12 @@ bun run build:server  # Build server only
 bun run deploy        # Deploy both to Fly.io
 bun run deploy:client # Deploy client only
 bun run deploy:server # Deploy server only
+
+# Utility Scripts
+./scripts/setup-fly.sh      # Interactive Fly.io setup
+./scripts/get-dns-records.sh # Get correct DNS records after deployment
+./scripts/fly-scale.sh      # Fix machine scaling
+./scripts/init.sh           # Initialize new project
 ```
 
 ## 🚀 Deployment
@@ -163,19 +186,71 @@ bun run deploy:server # Deploy server only
 ### Quick Deploy to Fly.io
 
 ```bash
-# Run automated setup
+# 1. Run automated setup (recommended)
 ./scripts/setup-fly.sh
 
-# Or manual deployment
-fly auth login
-fly apps create your-app-client
-fly apps create your-app-server
-fly postgres create
-fly secrets set --app your-app-server
+# This will guide you through:
+# - Creating Fly.io apps
+# - Setting up PostgreSQL (Neon or external)
+# - Configuring Redis (optional)
+# - Setting up custom domains (optional)
+# - Deploying your apps
+
+# 2. Deploy your application
 bun run deploy
+
+# 3. Verify DNS records (if using custom domain)
+./scripts/get-dns-records.sh
 ```
 
-See [SETUP.md](./SETUP.md) for detailed deployment instructions.
+### Custom Domains
+
+After deployment with custom domains:
+1. Run `./scripts/get-dns-records.sh` to get actual IP addresses
+2. Add BOTH A (IPv4) and AAAA (IPv6) records - **IPv6 is REQUIRED**
+3. Configure CNAME for API subdomain
+
+See [SETUP.md](./SETUP.md) for detailed deployment instructions and [Authentication Guide](./docs/COOKIE_FIX.md) for cookie configuration.
+
+## 📋 Complete Setup Workflow
+
+### From Clone to Production:
+
+1. **Clone & Initialize**
+   ```bash
+   git clone <template-repo> my-app && cd my-app
+   ./scripts/init.sh
+   ```
+
+2. **Local Development**
+   ```bash
+   bun run dev
+   # Test at http://localhost:5173
+   ```
+
+3. **Fly.io Setup**
+   ```bash
+   ./scripts/setup-fly.sh
+   # Follow prompts for apps, database, Redis, domains
+   ```
+
+4. **Deploy**
+   ```bash
+   bun run deploy
+   ```
+
+5. **Configure DNS** (if using custom domain)
+   ```bash
+   ./scripts/get-dns-records.sh
+   # Add shown A and AAAA records to DNS provider
+   # BOTH IPv4 and IPv6 are REQUIRED
+   ```
+
+6. **Verify**
+   ```bash
+   fly status --app your-app-client
+   fly status --app your-app-server
+   ```
 
 ## 🔧 Configuration
 
@@ -186,9 +261,11 @@ See [SETUP.md](./SETUP.md) for detailed deployment instructions.
 - `BETTER_AUTH_SECRET` - Auth secret key
 - `REDIS_URL` - Redis connection
 - `NODE_ENV` - Environment mode
+- `COOKIE_DOMAIN` - For custom domains (e.g., `.yourdomain.com`)
+- `CLIENT_URL` - Frontend URL for CORS
 
 **Client** (`apps/client/.env`):
-- `VITE_API_URL` - Backend URL (optional)
+- `VITE_API_URL` - Backend URL (optional, auto-detected)
 - `VITE_APP_NAME` - Application name
 
 ## 📖 API Endpoints
